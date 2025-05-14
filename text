@@ -1,0 +1,132 @@
+
+Изучи документацию из файлов Trading APIs&Exchange development.md и Trading APIs&Exchange backlog.md, фокусируясь на структуре модуля Trading APIs & Exchange.
+
+Твоя задача - создать базовую структуру проекта для модуля Trading APIs & Exchange (первая задача из бэклога). Пожалуйста, выполни следующие действия:
+
+1. Есть уже созданные основные директории согласно спецификации в документах, тебе не нужно создавать их:
+   - `exchange_api/`
+   - `exchange_api/core/`
+   - `exchange_api/connection/`
+   - `exchange_api/exchanges/`
+   - `exchange_api/exchanges/bybit/`
+   - `exchange_api/models/`
+   - `exchange_api/interfaces/`
+   - `exchange_api/services/`
+   - `exchange_api/services/bybit/`
+   - `exchange_api/utils/`
+
+2. В каждой директории создай файл `__init__.py`
+
+3. Создай файл setup.py с определением:
+   - Зависимостей проекта (aiohttp, pydantic, ujson, backoff и др.)
+   - Метаданных пакета (название "exchange_api", версия "0.1.0", описание)
+   - Параметров установки
+
+4. Создай README.md с:
+   - Описанием назначения модуля на основе документации
+   - Инструкцией по установке
+   - Базовым примером использования
+
+5. Создай .gitignore с настройками для Python-проекта
+
+В каждом файле (кроме __init__.py) создай базовые классы/функции с докстрингами, соответствующие описанию из документации. Не требуется полная реализация, только структура с заглушками и комментариями.
+
+В файле __init__.py в корне модуля определи версию пакета как "0.1.0".
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Изучи документацию из файлов Trading APIs&Exchange development.md и Trading APIs&Exchange backlog.md, фокусируясь на структуре модуля Trading APIs & Exchange.
+
+Твоя задача - создать базовую структуру проекта для модуля Trading APIs & Exchange (первая задача из бэклога). Пожалуйста, выполни следующие действия:
+
+1. Создай основную структуру директорий согласно спецификации в документах:
+   - `exchange_api/`
+   - `exchange_api/core/`
+   - `exchange_api/connection/`
+   - `exchange_api/exchanges/`
+   - `exchange_api/exchanges/bybit/`
+   - `exchange_api/models/`
+   - `exchange_api/interfaces/`
+   - `exchange_api/services/`
+   - `exchange_api/services/bybit/`
+   - `exchange_api/utils/`
+
+2. В каждой директории создай файл `__init__.py`
+   
+3. Создай базовые файлы-заглушки с минимальной структурой для ключевых компонентов, в классах не нужно никакой реализации, просто комментарий какая роль класса:
+   - `exchange_api/core/client.py` - Базовый интерфейс клиента криптобиржи
+   - `exchange_api/core/config.py` - Конфигурация с ключами для криптобиржи
+   - `exchange_api/connection/connection_manager.py` - Центральный менеджер соединений
+   - `exchange_api/connection/websocket_manager.py` - Управление WebSocket
+   - `exchange_api/connection/reconnection_handler.py` - Логика переподключения
+   - `exchange_api/exchanges/bybit/bybit_client.py` - Клиент Bybit
+   - `exchange_api/exchanges/bybit/endpoints.py` - Эндпоинты API
+   - `exchange_api/exchanges/bybit/websocket_handlers.py` - Обработчики WebSocket
+   - `exchange_api/models/market_data.py` - Модели рыночных данных
+   - `exchange_api/models/trade_data.py` - Модели торговых данных
+   - `exchange_api/interfaces/market_data.py` - Объединенный интерфейс для рыночных данных
+   - `exchange_api/interfaces/market_data_rest.py` - Интерфейс для REST API рыночных данных
+   - `exchange_api/interfaces/market_data_stream.py` - Интерфейс для WebSocket рыночных данных
+   - `exchange_api/interfaces/trade_executor.py` - Объединенный интерфейс для торговых операций
+   - `exchange_api/interfaces/trade_executor_rest.py` - Интерфейс для REST API торговых операций
+   - `exchange_api/interfaces/trade_executor_stream.py` - Интерфейс для WebSocket торговых операций
+   - `exchange_api/services/bybit/market_data_rest_service.py` - Реализация REST API
+   - `exchange_api/services/bybit/market_data_stream_service.py` - Реализация WebSocket для данных
+   - `exchange_api/services/bybit/trade_executor_rest_service.py` - Реализация REST API для торговли
+   - `exchange_api/services/bybit/trade_executor_stream_service.py` - Реализация WebSocket для торговли
+   - `exchange_api/utils/logger.py` - Логирование
+   - `exchange_api/utils/validators.py` - Валидаторы
+   - `exchange_api/exceptions.py` - Кастомные исключения
+   - `exchange_api/__init__.py` - Инициализация пакета с указанием версии "0.1.0"
+
+4. Создай файл setup.py с определением:
+   - Зависимостей проекта (aiohttp, pydantic, ujson, backoff и др.)
+   - Метаданных пакета (название "vanta-trading-sdk", версия "0.1.0", описание)
+   - Параметров установки
+
+5. Создай README.md с:
+   - Описанием назначения модуля на основе документации
+   - Инструкцией по установке
+   - Базовым примером использования
+
+6. Создай .gitignore с настройками для Python-проекта
+
+В каждом файле (кроме __init__.py) создай базовые классы/функции с докстрингами, соответствующие описанию из документации. Не требуется полная реализация, только структура с заглушками и комментариями.
+
+В файле __init__.py в корне модуля определи версию пакета как "0.1.0".
