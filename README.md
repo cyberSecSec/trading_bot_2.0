@@ -336,76 +336,248 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Получение рыночных данных
+
+### Использование базового клиента Bybit
+
+Базовый клиент Bybit предоставляет унифицированный интерфейс для работы с API Bybit, включая получение рыночных данных и выполнение торговых операций.
 
 ```python
 import asyncio
-from exchange_api.core.config import ClientConfig
-from exchange_api.services.bybit import BybitMarketDataRestProvider
+from decimal import Decimal
+from exchange_api.exchanges.bybit import BybitClient, BybitClientConfig
 
 async def main():
-    # Создание конфигурации
-    config = ClientConfig.from_env("bybit")
+    # Создание конфигурации для Bybit
+    config = BybitClientConfig.get_default()  # Использует testnet по умолчанию
     
-    # Создание провайдера рыночных данных
-    provider = BybitMarketDataRestProvider(config)
-    
-    # Инициализация провайдера
-    await provider.initialize()
-    
-    try:
+    # Инициализация клиента
+    async with BybitClient(config) as client:
         # Получение OHLCV данных
-        klines = await provider.get_klines(
+        klines = await client.get_klines(
             symbol="BTCUSDT",
-            interval="1m",
-            limit=100
+            interval="1",  # 1 минута
+            limit=10,
+            category="spot"
         )
         
-        print(f"Получено {len(klines)} свечей")
-        print(f"Последняя свеча: {klines[-1]}")
+        print(f"Получено {len(klines)} свечей для BTCUSDT:")
+        for kline in klines[:3]:  # Выводим первые 3 свечи
+            print(f"Время: {kline['timestamp']}, Цена закрытия: {kline['close']}")
         
-    finally:
-        # Освобождение ресурсов
-        await provider.shutdown()
+        # Получение стакана ордеров
+        orderbook = await client.get_orderbook(
+            symbol="BTCUSDT",
+            limit=5,  # Получаем 5 лучших уровней
+            category="spot"
+        )
+        
+        print("\nСтакан ордеров BTCUSDT:")
+        print(f"Лучшие предложения на покупку (bids):")
+        for bid in orderbook["bids"][:3]:
+            print(f"Цена: {bid[0]}, Объем: {bid[1]}")
+        
+        print(f"Лучшие предложения на продажу (asks):")
+        for ask in orderbook["asks"][:3]:
+            print(f"Цена: {ask[0]}, Объем: {ask[1]}")
+        
+        # Получение последних сделок
+        trades = await client.get_recent_trades(
+            symbol="BTCUSDT",
+            limit=5,
+            category="spot"
+        )
+        
+        print("\nПоследние сделки BTCUSDT:")
+        for trade in trades[:3]:
+            side = "Покупка" if trade["side"] == "Buy" else "Продажа"
+            print(f"{side}: Цена: {trade['price']}, Объем: {trade['quantity']}")
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### Выполнение торговых операций
+### Работа с WebSocket API Bybit
+
+Пример подписки на потоки данных в реальном времени через WebSocket API:
 
 ```python
 import asyncio
-from exchange_api.core.config import ClientConfig
-from exchange_api.services.bybit import BybitTradeRestExecutor
+import json
+from exchange_api.exchanges.bybit import (
+    BybitClientConfig, BybitWebSocketManager, 
+    PublicWebSocketChannels, format_public_channel
+)
+
+async def message_handler(message):
+    """Обработчик входящих сообщений WebSocket."""
+    if 'topic' in message:
+        topic = message['topic']
+        
+        # Обрабатываем разные типы сообщений
+        if topic.startswith('orderbook.'):
+            data = message.get('data', {})
+            if data and 'a' in data and 'b' in data:
+                print(f"Обновление стакана: {len(data['a'])} asks, {len(data['b'])} bids")
+        
+        elif topic.startswith('kline.'):
+            data = message.get('data', [])
+            if data:
+                candle = data[0]
+                print(f"Свеча: O:{candle[1]} H:{candle[2]} L:{candle[3]} C:{candle[4]}")
+        
+        elif topic.startswith('publicTrade.'):
+            data = message.get('data', [])
+            if data:
+                trade = data[0]
+                print(f"Сделка: {trade.get('S')} {trade.get('p')} x {trade.get('v')}")
 
 async def main():
     # Создание конфигурации
-    config = ClientConfig.from_env("bybit")
+    config = BybitClientConfig.get_default()
     
-    # Создание исполнителя торговых операций
-    executor = BybitTradeRestExecutor(config)
-    
-    # Инициализация исполнителя
-    await executor.initialize()
+    # Создание WebSocket менеджера
+    ws_manager = BybitWebSocketManager(
+        config=config,
+        on_message=message_handler
+    )
     
     try:
-        # Создание лимитного ордера
-        order = await executor.create_order(
-            symbol="BTCUSDT",
-            side="Buy",
-            order_type="Limit",
-            qty=0.001,
-            price=20000.0
+        # Подключение к WebSocket серверу
+        await ws_manager.connect()
+        
+        # Формируем имена каналов с помощью функции format_public_channel
+        kline_channel = format_public_channel(
+            PublicWebSocketChannels.KLINE,
+            interval="1",
+            symbol="BTCUSDT"
         )
         
-        print(f"Создан ордер: {order}")
+        orderbook_channel = format_public_channel(
+            PublicWebSocketChannels.ORDERBOOK,
+            depth="50",
+            symbol="BTCUSDT"
+        )
+        
+        trade_channel = format_public_channel(
+            PublicWebSocketChannels.TRADE,
+            symbol="BTCUSDT"
+        )
+        
+        # Подписываемся на каналы
+        await ws_manager.subscribe(kline_channel)
+        await ws_manager.subscribe(orderbook_channel)
+        await ws_manager.subscribe(trade_channel)
+        
+        print("Подписки активированы, ожидаем сообщения в течение 30 секунд...")
+        
+        # Ожидаем и обрабатываем сообщения
+        await asyncio.sleep(30)
         
     finally:
-        # Освобождение ресурсов
-        await executor.shutdown()
+        # Отключаемся от WebSocket сервера
+        await ws_manager.disconnect()
+        print("WebSocket соединение закрыто")
 
 if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+### Использование обработчиков WebSocket сообщений
+
+Пример использования специализированных обработчиков WebSocket сообщений:
+
+```python
+import asyncio
+from exchange_api.exchanges.bybit import (
+    BybitClientConfig, BybitWebSocketManager,
+    WebSocketMessageRouter, KlineMessageHandler, 
+    OrderbookMessageHandler, TradeMessageHandler,
+    PublicWebSocketChannels, format_public_channel
+)
+
+async def kline_callback(data):
+    """Обработчик OHLCV данных."""
+    if 'data' in data and data['data']:
+        candle = data['data'][0]
+        print(f"Новая свеча {data['symbol']}: Открытие: {candle['open']}, Закрытие: {candle['close']}")
+
+async def orderbook_callback(data):
+    """Обработчик стакана ордеров."""
+    if 'bids' in data and 'asks' in data:
+        print(f"Обновление стакана {data['symbol']}: {len(data['bids'])} bids, {len(data['asks'])} asks")
+        if data['bids']:
+            print(f"Лучшая цена покупки: {data['bids'][0][0]}")
+        if data['asks']:
+            print(f"Лучшая цена продажи: {data['asks'][0][0]}")
+
+async def trade_callback(data):
+    """Обработчик сделок."""
+    if 'data' in data and data['data']:
+        trade = data['data'][0]
+        print(f"Новая сделка {data['symbol']}: {trade['side']} {trade['price']} x {trade['quantity']}")
+
+async def handle_ws_message(message):
+    """Основной обработчик сообщений."""
+    await router.route_message(message)
+
+async def main():
+    # Создание конфигурации
+    config = BybitClientConfig.get_default()
+    
+    # Создание WebSocket менеджера
+    ws_manager = BybitWebSocketManager(
+        config=config,
+        on_message=handle_ws_message
+    )
+    
+    # Создание маршрутизатора сообщений
+    global router
+    router = WebSocketMessageRouter("bybit")
+    
+    # Добавление обработчиков с колбэками
+    router.add_handler(KlineMessageHandler(kline_callback))
+    router.add_handler(OrderbookMessageHandler(orderbook_callback))
+    router.add_handler(TradeMessageHandler(trade_callback))
+    
+    try:
+        # Подключение к WebSocket серверу
+        await ws_manager.connect()
+        
+        # Формируем каналы и подписываемся
+        kline_channel = format_public_channel(
+            PublicWebSocketChannels.KLINE,
+            interval="1",
+            symbol="BTCUSDT"
+        )
+        
+        orderbook_channel = format_public_channel(
+            PublicWebSocketChannels.ORDERBOOK,
+            depth="50",
+            symbol="BTCUSDT"
+        )
+        
+        trade_channel = format_public_channel(
+            PublicWebSocketChannels.TRADE,
+            symbol="BTCUSDT"
+        )
+        
+        # Подписываемся на каналы
+        await ws_manager.subscribe(kline_channel)
+        await ws_manager.subscribe(orderbook_channel)
+        await ws_manager.subscribe(trade_channel)
+        
+        print("Подписки активированы, ожидаем сообщения в течение 30 секунд...")
+        
+        # Ожидаем и обрабатываем сообщения
+        await asyncio.sleep(30)
+        
+    finally:
+        # Отключаемся от WebSocket сервера
+        await ws_manager.disconnect()
+        print("WebSocket соединение закрыто")
+
+if __name__ == "__main__":
+    router = None  # Глобальная переменная для маршрутизатора
     asyncio.run(main())
 ```
 
