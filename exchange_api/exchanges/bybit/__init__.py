@@ -36,6 +36,32 @@ from exchange_api.exchanges.bybit.config import (
 from exchange_api.exchanges.bybit.connection_manager import BybitConnectionManager
 from exchange_api.exchanges.bybit.websocket_manager import BybitWebSocketManager
 
+# Импортируем новые компоненты
+from exchange_api.exchanges.bybit.endpoints import (
+    MarketDataEndpoints,
+    TradeEndpoints,
+    PositionEndpoints,
+    AccountEndpoints,
+    PublicWebSocketChannels,
+    PrivateWebSocketChannels,
+    format_public_channel
+)
+
+from exchange_api.exchanges.bybit.websocket_handlers import (
+    BaseMessageHandler,
+    SystemMessageHandler,
+    KlineMessageHandler,
+    OrderbookMessageHandler,
+    TradeMessageHandler,
+    LiquidationMessageHandler,
+    OrderUpdateHandler,
+    PositionUpdateHandler,
+    WalletUpdateHandler,
+    WebSocketMessageRouter
+)
+
+from exchange_api.exchanges.bybit.bybit_client import BybitClient
+
 __all__ = [
     # Константы URL
     "API_URL_MAINNET",
@@ -72,5 +98,29 @@ __all__ = [
     
     # Адаптеры соединения
     "BybitConnectionManager",
-    "BybitWebSocketManager"
+    "BybitWebSocketManager",
+    
+    # Эндпоинты API
+    "MarketDataEndpoints",
+    "TradeEndpoints",
+    "PositionEndpoints",
+    "AccountEndpoints",
+    "PublicWebSocketChannels",
+    "PrivateWebSocketChannels",
+    "format_public_channel",
+    
+    # Обработчики WebSocket сообщений
+    "BaseMessageHandler",
+    "SystemMessageHandler",
+    "KlineMessageHandler",
+    "OrderbookMessageHandler",
+    "TradeMessageHandler",
+    "LiquidationMessageHandler",
+    "OrderUpdateHandler",
+    "PositionUpdateHandler",
+    "WalletUpdateHandler",
+    "WebSocketMessageRouter",
+    
+    # Клиент Bybit
+    "BybitClient"
 ] 
