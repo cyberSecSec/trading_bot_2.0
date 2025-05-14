@@ -16,7 +16,7 @@ Trading APIs & Exchange выполняет следующие функции в 
 ### Из исходного кода
 
 ```bash
-git clone https://github.com/vanta/exchange_api.git
+git clone https://github.com/cyberSecSec/trading_bot_2.0.git
 cd exchange_api
 pip install -e .
 ```
@@ -27,7 +27,209 @@ pip install -e .
 pip install vanta-exchange-api
 ```
 
+## Основные компоненты
+
+### Конфигурация
+
+Модуль использует гибкую систему конфигурации, позволяющую настраивать параметры подключения к биржам:
+
+```python
+from exchange_api.core.config import ClientConfig
+
+# Создание конфигурации из переменных окружения
+config = ClientConfig.from_env("bybit")
+
+# Создание конфигурации из JSON-файла
+config = ClientConfig.from_json("config.json")
+
+# Создание конфигурации с дефолтными значениями
+config = ClientConfig.get_default("bybit")
+
+# Сохранение конфигурации в файл (секретные данные маскируются)
+config.to_json("saved_config.json")
+```
+
+### Конфигурация Bybit
+
+Для работы с Bybit API реализована специализированная конфигурация, учитывающая особенности этой биржи:
+
+```python
+from exchange_api.exchanges.bybit import BybitClientConfig, BybitEnvironmentType
+
+# Создание конфигурации Bybit из переменных окружения
+config = BybitClientConfig.from_env()
+
+# Создание конфигурации с дефолтными значениями (использует testnet)
+config = BybitClientConfig.get_default()
+
+# Сохранение конфигурации в файл
+config.to_json("bybit_config.json")
+```
+
+#### Пример конфигурации для тестовой среды (Testnet)
+
+```python
+from exchange_api.exchanges.bybit import BybitClientConfig, BybitEnvironmentType
+from exchange_api.core.config import ApiCredentials, ConnectionConfig, RateLimitConfig
+
+# Создание тестовой конфигурации
+test_config = BybitClientConfig(
+    exchange_name="bybit",
+    bybit_environment=BybitEnvironmentType.TESTNET,  # Указываем тестовую сеть
+    credentials=ApiCredentials(
+        api_key="тестовый_api_ключ",
+        api_secret="тестовый_секретный_ключ"
+    ),
+    categories={"spot", "linear"},  # Категории инструментов для работы
+    recv_window=5000,  # Окно приема для запросов (в миллисекундах)
+    test_mode=True,   # Этот параметр будет установлен автоматически для testnet
+    debug_mode=True   # Включаем расширенное логирование для тестирования
+)
+
+# URL-адреса API и WebSocket будут установлены автоматически на основе bybit_environment
+print(f"Base URL: {test_config.connection.base_url}")  # https://api-testnet.bybit.com
+print(f"WS URL: {test_config.connection.ws_url}")      # wss://stream-testnet.bybit.com
+```
+
+#### Пример конфигурации для продакшн-среды (Mainnet)
+
+```python
+from exchange_api.exchanges.bybit import BybitClientConfig, BybitEnvironmentType
+from exchange_api.core.config import ApiCredentials, RateLimitConfig
+
+# Создание продакшн-конфигурации
+prod_config = BybitClientConfig(
+    exchange_name="bybit",
+    bybit_environment=BybitEnvironmentType.MAINNET,  # Указываем основную сеть
+    credentials=ApiCredentials(
+        api_key="боевой_api_ключ",
+        api_secret="боевой_секретный_ключ"
+    ),
+    categories={"spot", "linear", "inverse"},  # Категории инструментов для работы
+    recv_window=5000,  # Окно приема для запросов (в миллисекундах)
+    rate_limit=RateLimitConfig(
+        max_requests_per_second=10,  # Лимиты для боевого API
+        max_requests_per_minute=600,
+        max_connections=30
+    ),
+    test_mode=False,  # Боевой режим
+    debug_mode=False  # Отключаем отладочный режим в продакшене
+)
+
+# URL-адреса API и WebSocket будут установлены автоматически
+print(f"Base URL: {prod_config.connection.base_url}")  # https://api.bybit.com
+print(f"WS URL: {prod_config.connection.ws_url}")      # wss://stream.bybit.com
+```
+
+### Переменные окружения
+
+Для работы с модулем через `ClientConfig.from_env()` необходимо настроить следующие переменные окружения:
+
+```
+# Базовые параметры подключения
+VANTA_BYBIT_API_KEY=ваш_api_ключ
+VANTA_BYBIT_API_SECRET=ваш_секретный_ключ
+
+# Параметры окружения
+VANTA_BYBIT_ENVIRONMENT=production  # или development, test
+VANTA_BYBIT_TEST_MODE=false         # или true
+VANTA_BYBIT_DEBUG_MODE=false        # или true
+```
+
+При использовании специализированного `BybitClientConfig.from_env()` можно настроить дополнительно:
+
+```
+# Специфичные для Bybit параметры
+VANTA_BYBIT_ENVIRONMENT=mainnet      # или testnet
+VANTA_BYBIT_CATEGORIES=spot,linear    # список категорий через запятую
+VANTA_BYBIT_RECV_WINDOW=5000         # окно приема в миллисекундах
+
+# Настройки лимитов запросов
+VANTA_BYBIT_MAX_REQUESTS_PER_SECOND=20
+VANTA_BYBIT_MAX_REQUESTS_PER_MINUTE=1200  
+VANTA_BYBIT_MAX_CONNECTIONS=50
+```
+
+Также можно задать URL-адреса API и WebSocket напрямую:
+
+```
+VANTA_BYBIT_BASE_URL=https://api.bybit.com       # или https://api-testnet.bybit.com
+VANTA_BYBIT_WS_URL=wss://stream.bybit.com        # или wss://stream-testnet.bybit.com
+```
+
+URL-адреса будут автоматически настроены в зависимости от выбранного окружения Bybit (mainnet или testnet).
+
+### Логирование
+
+Модуль включает встроенную систему логирования на базе библиотеки loguru:
+
+```python
+from exchange_api.utils.logger import Logger, LogConfig, LogLevel
+
+# Настройка логирования с использованием конфигурации клиента
+Logger.setup_from_client_config(config)
+
+# Получение логгера
+from exchange_api.utils.logger import log
+log.info("Пример информационного сообщения")
+log.debug("Отладочная информация")
+log.error("Ошибка при выполнении операции")
+
+# Логирование с контекстом
+logger = Logger.with_context(exchange="bybit", symbol="BTCUSDT")
+logger.info("Логирование с контекстным контекстом")
+```
+
+### Обработка ошибок
+
+Модуль предоставляет расширенную иерархию исключений для обработки различных ситуаций:
+
+```python
+from exchange_api.exceptions import VantaTradingError, ConnectionError, RateLimitError
+
+try:
+    # Код, который может вызвать исключение
+    pass
+except RateLimitError as e:
+    # Обработка превышения лимитов API
+    print(f"Превышен лимит запросов. Повторите через {e.retry_after} секунд")
+except ConnectionError as e:
+    # Обработка проблем с соединением
+    print(f"Ошибка соединения: {e}")
+except VantaTradingError as e:
+    # Обработка любых других ошибок модуля
+    print(f"Произошла ошибка: {e}")
+    
+    # Получение детальной информации об ошибке в виде словаря
+    error_info = e.to_dict()
+    print(f"Детали ошибки: {error_info}")
+```
+
 ## Базовый пример использования
+
+### Получение рыночных данных с использованием BybitClientConfig
+
+```python
+import asyncio
+from exchange_api.exchanges.bybit import BybitClientConfig
+
+async def main():
+    # Создание специализированной конфигурации для Bybit
+    config = BybitClientConfig.get_default()  # Использует testnet по умолчанию
+    
+    # Здесь будет код для инициализации и использования клиента Bybit
+    # Пример кода:
+    print(f"Соединение с: {config.connection.base_url}")
+    print(f"Режим тестирования: {'Включен' if config.test_mode else 'Выключен'}")
+    print(f"Категории: {config.categories}")
+    
+    # В будущих реализациях провайдер будет использовать специальную конфигурацию
+    # provider = BybitMarketDataRestProvider(config)
+    # klines = await provider.get_klines(symbol="BTCUSDT", interval="1m", limit=100)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
 
 ### Получение рыночных данных
 
