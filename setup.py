@@ -13,13 +13,12 @@ setup(
     packages=find_packages(),
     python_requires=">=3.8",
     install_requires=[
-        "aiohttp>=3.8.0",
-        "pydantic>=1.9.0",
-        "ujson>=5.4.0",
-        "backoff>=2.1.2",
-        "websockets>=10.3",
+        "pydantic>=1.9.0,<2.0.0",
+        "loguru>=0.6.0",
         "python-dotenv>=0.20.0",
-        "loguru>=0.6.0"
+        "aiohttp>=3.8.0",
+        "websockets>=10.3",
+        "backoff>=2.0.0",
     ],
     extras_require={
         "dev": [
@@ -29,7 +28,7 @@ setup(
             "black>=22.3.0",
             "isort>=5.10.0",
             "mypy>=0.950",
-            "flake8>=4.0.0"
+            "types-requests",
         ]
     },
     classifiers=[

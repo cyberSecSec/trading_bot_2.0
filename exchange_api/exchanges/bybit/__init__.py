@@ -33,22 +33,27 @@ from exchange_api.exchanges.bybit.config import (
     BybitClientConfig
 )
 
+from exchange_api.exchanges.bybit.connection_manager import BybitConnectionManager
+from exchange_api.exchanges.bybit.websocket_manager import BybitWebSocketManager
+
 __all__ = [
     # Константы URL
     "API_URL_MAINNET",
     "API_URL_TESTNET",
     "WS_URL_MAINNET",
     "WS_URL_TESTNET",
+    
+    # Префикс окружения
     "ENV_PREFIX",
     
-    # Константы категорий
+    # Категории
     "CATEGORY_SPOT",
     "CATEGORY_LINEAR",
     "CATEGORY_INVERSE",
     "CATEGORY_OPTION",
     "VALID_CATEGORIES",
     
-    # Enum классы
+    # Перечисления
     "OrderType",
     "OrderSide",
     "TimeInForce",
@@ -61,7 +66,11 @@ __all__ = [
     "OrderBookDepth",
     "WebSocketChannel",
     
-    # Классы конфигурации
+    # Конфигурация
     "BybitEnvironmentType",
-    "BybitClientConfig"
+    "BybitClientConfig",
+    
+    # Адаптеры соединения
+    "BybitConnectionManager",
+    "BybitWebSocketManager"
 ] 

@@ -121,6 +121,111 @@ print(f"Base URL: {prod_config.connection.base_url}")  # https://api.bybit.com
 print(f"WS URL: {prod_config.connection.ws_url}")      # wss://stream.bybit.com
 ```
 
+### Адаптеры соединения
+
+Модуль предоставляет адаптеры для работы с HTTP и WebSocket соединениями.
+
+#### HTTP соединения
+
+```python
+import asyncio
+from exchange_api.core.config import ClientConfig
+from exchange_api.connection import ConnectionManager
+
+async def example():
+    # Инициализация конфигурации
+    config = ClientConfig.get_default("bybit")
+    
+    # Создание менеджера соединений
+    async with ConnectionManager(config) as conn:
+        # Выполнение GET-запроса без аутентификации
+        public_data = await conn.get("/v5/market/tickers", {"category": "spot"})
+        print(f"Публичные данные: {public_data}")
+        
+        # Выполнение GET-запроса с аутентификацией
+        private_data = await conn.get("/v5/account/wallet-balance", 
+                                     {"accountType": "UNIFIED"},
+                                     authenticate=True)
+        print(f"Приватные данные: {private_data}")
+
+# Запуск асинхронной функции
+asyncio.run(example())
+```
+
+#### WebSocket соединения
+
+```python
+import asyncio
+from exchange_api.core.config import ClientConfig
+from exchange_api.connection import WebSocketManager
+
+async def on_message(data):
+    print(f"Получено сообщение: {data}")
+
+async def example():
+    # Инициализация конфигурации
+    config = ClientConfig.get_default("bybit")
+    
+    # Создание менеджера WebSocket соединений
+    ws_manager = WebSocketManager(
+        config,
+        on_message=on_message
+    )
+    
+    # Подключение к WebSocket серверу
+    await ws_manager.connect()
+    
+    # Подписка на каналы данных
+    await ws_manager.subscribe("orderbook.50.BTCUSDT")
+    await ws_manager.subscribe("tickers.ETHUSDT")
+    
+    # Ожидание и обработка сообщений
+    await asyncio.sleep(30)
+    
+    # Отключение от WebSocket сервера
+    await ws_manager.disconnect()
+
+# Запуск асинхронной функции
+asyncio.run(example())
+```
+
+#### Обработка переподключений
+
+```python
+import asyncio
+from exchange_api.core.config import ClientConfig
+from exchange_api.connection import ConnectionManager
+from exchange_api.connection import ReconnectionHandler
+
+# Декоратор для повторных попыток с экспоненциальной задержкой
+@ReconnectionHandler.with_backoff(
+    max_tries=5,
+    base_delay=1.0,
+    max_delay=30.0
+)
+async def fetch_data(conn, endpoint, params):
+    return await conn.get(endpoint, params)
+
+# Декоратор для обработки превышения лимитов запросов
+@ReconnectionHandler.with_rate_limit_handling()
+async def fetch_rate_limited_data(conn, endpoint, params):
+    return await conn.get(endpoint, params)
+
+async def example():
+    config = ClientConfig.get_default("bybit")
+    
+    async with ConnectionManager(config) as conn:
+        # Использование функции с автоматической обработкой переподключений
+        try:
+            data = await fetch_data(conn, "/v5/market/tickers", {"category": "spot"})
+            print(f"Данные получены: {data}")
+        except Exception as e:
+            print(f"Ошибка после всех попыток: {e}")
+
+# Запуск асинхронной функции
+asyncio.run(example())
+```
+
 ### Переменные окружения
 
 Для работы с модулем через `ClientConfig.from_env()` необходимо настроить следующие переменные окружения:
