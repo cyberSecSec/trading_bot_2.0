@@ -16,7 +16,7 @@ Trading APIs & Exchange выполняет следующие функции в 
 ### Из исходного кода
 
 ```bash
-git clone https://github.com/vanta/exchange_api.git
+git clone https://github.com/cyberSecSec/trading_bot_2.0.git
 cd exchange_api
 pip install -e .
 ```
@@ -25,6 +25,74 @@ pip install -e .
 
 ```bash
 pip install vanta-exchange-api
+```
+
+## Основные компоненты
+
+### Конфигурация
+
+Модуль использует гибкую систему конфигурации, позволяющую настраивать параметры подключения к биржам:
+
+```python
+from exchange_api.core.config import ClientConfig
+
+# Создание конфигурации из переменных окружения
+config = ClientConfig.from_env("bybit")
+
+# Создание конфигурации из JSON-файла
+config = ClientConfig.from_json("config.json")
+
+# Создание конфигурации с дефолтными значениями
+config = ClientConfig.get_default("bybit")
+
+# Сохранение конфигурации в файл (секретные данные маскируются)
+config.to_json("saved_config.json")
+```
+
+### Логирование
+
+Модуль включает встроенную систему логирования на базе библиотеки loguru:
+
+```python
+from exchange_api.utils.logger import Logger, LogConfig, LogLevel
+
+# Настройка логирования с использованием конфигурации клиента
+Logger.setup_from_client_config(config)
+
+# Получение логгера
+from exchange_api.utils.logger import log
+log.info("Пример информационного сообщения")
+log.debug("Отладочная информация")
+log.error("Ошибка при выполнении операции")
+
+# Логирование с контекстом
+logger = Logger.with_context(exchange="bybit", symbol="BTCUSDT")
+logger.info("Логирование с контекстным контекстом")
+```
+
+### Обработка ошибок
+
+Модуль предоставляет расширенную иерархию исключений для обработки различных ситуаций:
+
+```python
+from exchange_api.exceptions import VantaTradingError, ConnectionError, RateLimitError
+
+try:
+    # Код, который может вызвать исключение
+    pass
+except RateLimitError as e:
+    # Обработка превышения лимитов API
+    print(f"Превышен лимит запросов. Повторите через {e.retry_after} секунд")
+except ConnectionError as e:
+    # Обработка проблем с соединением
+    print(f"Ошибка соединения: {e}")
+except VantaTradingError as e:
+    # Обработка любых других ошибок модуля
+    print(f"Произошла ошибка: {e}")
+    
+    # Получение детальной информации об ошибке в виде словаря
+    error_info = e.to_dict()
+    print(f"Детали ошибки: {error_info}")
 ```
 
 ## Базовый пример использования
@@ -118,6 +186,24 @@ pip install -e ".[dev]"
 
 ```bash
 pytest
+```
+
+### Переменные окружения
+
+Для работы с модулем через `ClientConfig.from_env()` необходимо настроить следующие переменные окружения:
+
+```
+VANTA_BYBIT_API_KEY=ваш_api_ключ
+VANTA_BYBIT_API_SECRET=ваш_секретный_ключ
+VANTA_BYBIT_BASE_URL=https://api.bybit.com
+VANTA_BYBIT_WS_URL=wss://stream.bybit.com
+```
+
+Дополнительные опциональные параметры:
+```
+VANTA_BYBIT_ENVIRONMENT=production  # или development, test
+VANTA_BYBIT_TEST_MODE=false         # или true
+VANTA_BYBIT_DEBUG_MODE=false        # или true
 ```
 
 ## Лицензия
