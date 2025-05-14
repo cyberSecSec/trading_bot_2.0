@@ -585,6 +585,421 @@ if __name__ == "__main__":
 
 Подробная документация доступна [здесь](docs/index.md).
 
+## Модели данных
+
+Модуль предоставляет набор моделей данных для преобразования и нормализации информации, получаемой от API бирж в единый универсальный формат.
+
+### Структура моделей
+
+Модели данных организованы в иерархическую структуру:
+
+```
+models/
+├── __init__.py           # Общие импорты
+├── base.py               # Базовые абстрактные классы
+├── market_data/          # Модели рыночных данных
+│   ├── __init__.py
+│   ├── kline.py          # OHLCV данные
+│   ├── orderbook.py      # Стакан ордеров
+│   ├── trade.py          # Сделки
+│   ├── liquidation.py    # Ликвидации
+│   └── open_interest.py  # Открытый интерес
+├── trading/              # Модели торговых операций
+│   ├── __init__.py
+│   ├── order_params.py   # Параметры ордеров
+│   ├── order_info.py     # Информация об ордерах
+│   ├── execution_info.py # Исполнение ордеров
+│   └── position_info.py  # Позиции
+└── utils/                # Вспомогательные утилиты
+    ├── __init__.py
+    └── converters.py     # Конвертеры типов данных
+```
+
+### Базовые классы
+
+Все модели данных наследуются от базовых абстрактных классов:
+
+```python
+from models.base import BaseDataModel, BaseMarketDataModel, BaseTradingModel
+
+# BaseDataModel - общий базовый класс для всех моделей
+# BaseMarketDataModel - для моделей рыночных данных
+# BaseTradingModel - для моделей торговых операций
+```
+
+### Модели рыночных данных
+
+#### OHLCV данные (Kline)
+
+```python
+from models.market_data import KlineData, KlineInterval
+from datetime import datetime
+from decimal import Decimal
+
+# Создание объекта KlineData
+kline = KlineData(
+    timestamp=datetime.now(),
+    symbol="BTCUSDT",
+    exchange="bybit",
+    interval=KlineInterval.MIN_1,
+    open=Decimal("50000.0"),
+    high=Decimal("51000.0"),
+    low=Decimal("49800.0"),
+    close=Decimal("50500.0"),
+    volume=Decimal("10.5"),
+    turnover=Decimal("525000.0")
+)
+
+# Создание из ответа REST API Bybit
+bybit_rest_data = {
+    "symbol": "BTCUSDT",
+    "category": "linear",
+    "list": [
+        [
+            "1625793600000",  # timestamp
+            "33700",          # open
+            "33982",          # high
+            "33620",          # low
+            "33917",          # close
+            "11.887",         # volume
+            "4030098.6308"    # turnover
+        ]
+    ]
+}
+kline_from_rest = KlineData.from_bybit_rest(bybit_rest_data["list"][0], bybit_rest_data["symbol"])
+
+# Создание из сообщения WebSocket API Bybit
+bybit_ws_data = {
+    "topic": "kline.1.BTCUSDT",
+    "data": [
+        {
+            "start": 1675942800000,
+            "end": 1675942860000,
+            "interval": "1",
+            "open": "22711.5",
+            "close": "22718",
+            "high": "22718",
+            "low": "22711.5",
+            "volume": "5.456",
+            "turnover": "123949.4305",
+            "confirm": False,
+            "timestamp": 1675942858664
+        }
+    ]
+}
+kline_from_ws = KlineData.from_bybit_ws(bybit_ws_data)
+
+# Аналитические методы
+price_change = kline.price_change()  # Изменение цены за период
+percent_change = kline.percent_change()  # Процентное изменение
+is_bullish = kline.is_bullish()  # Является ли свеча бычьей
+```
+
+#### Стакан ордеров (OrderBook)
+
+```python
+from models.market_data import OrderBookData, OrderBookLevel
+from decimal import Decimal
+
+# Создание уровней стакана
+bids = [
+    OrderBookLevel(price=Decimal("49800.0"), quantity=Decimal("1.2")),
+    OrderBookLevel(price=Decimal("49750.0"), quantity=Decimal("0.8"))
+]
+asks = [
+    OrderBookLevel(price=Decimal("50200.0"), quantity=Decimal("0.5")),
+    OrderBookLevel(price=Decimal("50250.0"), quantity=Decimal("1.5"))
+]
+
+# Создание объекта OrderBookData
+orderbook = OrderBookData(
+    timestamp=datetime.now(),
+    symbol="BTCUSDT",
+    exchange="bybit",
+    bids=bids,
+    asks=asks
+)
+
+# Анализ стакана ордеров
+spread = orderbook.get_spread()  # Спред между лучшими ценами
+mid_price = orderbook.get_mid_price()  # Средняя цена
+imbalance = orderbook.get_imbalance()  # Дисбаланс спроса/предложения
+```
+
+#### Сделки (Trades)
+
+```python
+from models.market_data import TradeData, TradeSide
+from decimal import Decimal
+
+# Создание объекта TradeData
+trade = TradeData(
+    timestamp=datetime.now(),
+    symbol="BTCUSDT",
+    exchange="bybit",
+    trade_id="123456",
+    price=Decimal("50100.0"),
+    quantity=Decimal("0.12"),
+    side=TradeSide.BUY,
+    is_maker=False
+)
+
+# Создание списка сделок из ответа API
+trades_data = [
+    {
+        "execId": "a1234",
+        "symbol": "BTCUSDT",
+        "price": "50100.5",
+        "size": "0.01",
+        "side": "Buy",
+        "time": "1675942858664",
+        "isMaker": False
+    },
+    {
+        "execId": "b5678",
+        "symbol": "BTCUSDT",
+        "price": "50100.0",
+        "size": "0.02",
+        "side": "Sell",
+        "time": "1675942859000",
+        "isMaker": True
+    }
+]
+trades_list = [TradeData.from_bybit_response(trade_data) for trade_data in trades_data]
+
+# Анализ сделок
+vwap = TradeData.calculate_vwap(trades_list)  # Средневзвешенная цена
+buy_volume = TradeData.calculate_buy_volume(trades_list)  # Объем покупок
+sell_volume = TradeData.calculate_sell_volume(trades_list)  # Объем продаж
+delta = TradeData.calculate_delta(trades_list)  # Дельта (разница покупки/продажи)
+```
+
+#### Ликвидации (Liquidations)
+
+```python
+from models.market_data import LiquidationData, LiquidationSide
+from decimal import Decimal
+
+# Создание объекта LiquidationData
+liquidation = LiquidationData(
+    timestamp=datetime.now(),
+    symbol="BTCUSDT",
+    exchange="bybit",
+    side=LiquidationSide.SELL,
+    price=Decimal("48000.0"),
+    quantity=Decimal("2.5")
+)
+
+# Обработка WebSocket сообщений о ликвидациях
+ws_data = {
+    "topic": "liquidation.BTCUSDT",
+    "data": [
+        {
+            "symbol": "BTCUSDT",
+            "side": "Sell",
+            "price": "48000.00",
+            "qty": "2.5",
+            "time": 1675942858664
+        }
+    ]
+}
+liq_from_ws = LiquidationData.from_bybit_ws(ws_data)
+```
+
+#### Открытый интерес (Open Interest)
+
+```python
+from models.market_data import OpenInterestData
+from decimal import Decimal
+
+# Создание объекта OpenInterestData
+oi = OpenInterestData(
+    timestamp=datetime.now(),
+    symbol="BTCUSDT",
+    exchange="bybit",
+    open_interest=Decimal("1250.5"),
+    open_interest_value=Decimal("62525000.0")
+)
+
+# Создание из ответа API
+api_data = {
+    "symbol": "BTCUSDT",
+    "openInterest": "1250.5",
+    "timestamp": "1675942858664"
+}
+oi_from_api = OpenInterestData.from_bybit_response(api_data)
+
+# Вычисление изменения открытого интереса
+prev_oi = OpenInterestData(
+    timestamp=datetime.now(),
+    symbol="BTCUSDT",
+    exchange="bybit",
+    open_interest=Decimal("1200.0"),
+    open_interest_value=Decimal("60000000.0")
+)
+oi_change = oi.calculate_change(prev_oi)  # Изменение открытого интереса
+oi_percent_change = oi.calculate_percent_change(prev_oi)  # Процентное изменение
+```
+
+### Модели торговых операций
+
+#### Параметры ордеров (OrderParams)
+
+```python
+from models.trading import OrderParams, OrderSide, OrderType, TimeInForce
+from decimal import Decimal
+
+# Создание параметров для рыночного ордера
+market_order_params = OrderParams.market_order(
+    symbol="BTCUSDT",
+    side=OrderSide.BUY,
+    qty=Decimal("0.01")
+)
+
+# Создание параметров для лимитного ордера
+limit_order_params = OrderParams.limit_order(
+    symbol="BTCUSDT",
+    side=OrderSide.SELL,
+    qty=Decimal("0.02"),
+    price=Decimal("50000.0"),
+    time_in_force=TimeInForce.GTC
+)
+
+# Создание параметров для стоп-ордера
+stop_order_params = OrderParams.stop_order(
+    symbol="BTCUSDT",
+    side=OrderSide.SELL,
+    qty=Decimal("0.01"),
+    trigger_price=Decimal("48000.0"),
+    price=Decimal("47950.0")  # Лимитная цена для исполнения
+)
+
+# Преобразование в формат запроса к API Bybit
+api_request_params = market_order_params.to_bybit_request()
+```
+
+#### Информация об ордерах (OrderInfo)
+
+```python
+from models.trading import OrderInfo, OrderStatus
+from decimal import Decimal
+
+# Создание объекта OrderInfo из ответа API
+api_response = {
+    "orderId": "12345",
+    "symbol": "BTCUSDT",
+    "side": "Buy",
+    "orderType": "Limit",
+    "price": "50000",
+    "qty": "0.01",
+    "status": "New",
+    "createdTime": "1675942858664",
+    "updatedTime": "1675942858664",
+    "timeInForce": "GTC",
+    "cumExecQty": "0",
+    "cumExecValue": "0"
+}
+order_info = OrderInfo.from_bybit_response(api_response)
+
+# Проверка статуса ордера
+is_active = order_info.is_active()
+is_filled = order_info.is_filled()
+is_cancelled = order_info.is_cancelled()
+fill_percent = order_info.fill_percent()  # Процент заполнения ордера
+```
+
+#### Исполнение ордеров (ExecutionInfo)
+
+```python
+from models.trading import ExecutionInfo, LiquidityType
+from decimal import Decimal
+
+# Создание объекта ExecutionInfo из ответа API
+api_response = {
+    "execId": "abcd1234",
+    "orderId": "12345",
+    "symbol": "BTCUSDT",
+    "side": "Buy",
+    "execPrice": "49950.5",
+    "execQty": "0.01",
+    "execTime": "1675942858664",
+    "execFee": "0.0299703",
+    "feeRate": "0.0006",
+    "liquidity": "Taker",
+    "feeCurrency": "USDT",
+    "execValue": "499.505"
+}
+exec_info = ExecutionInfo.from_bybit_response(api_response)
+
+# Расчет стоимости исполнения
+value = exec_info.value()  # Стоимость сделки (цена * количество)
+net_value = exec_info.net_value()  # Чистая стоимость с учетом комиссии
+
+# Обработка списка исполнений
+executions = [exec_info]
+total_fees = ExecutionInfo.calculate_total_fee(executions)  # Суммарные комиссии
+vwap = ExecutionInfo.calculate_vwap(executions)  # Средневзвешенная цена исполнения
+```
+
+#### Позиции (PositionInfo)
+
+```python
+from models.trading import PositionInfo, PositionStatus, MarginMode
+from decimal import Decimal
+
+# Создание объекта PositionInfo из ответа API
+api_response = {
+    "symbol": "BTCUSDT",
+    "side": "Buy",
+    "size": "0.01",
+    "entryPrice": "50000",
+    "leverage": "10",
+    "positionValue": "500",
+    "markPrice": "49500",
+    "positionStatus": "Normal",
+    "positionIdx": 0,
+    "marginMode": "isolated",
+    "positionMargin": "50",
+    "unrealisedPnl": "-5",
+    "liqPrice": "45000",
+    "bustPrice": "44900",
+    "createdTime": "1675942858664",
+    "updatedTime": "1675943858664"
+}
+position = PositionInfo.from_bybit_response(api_response)
+
+# Анализ позиции
+is_long = position.is_long()  # Длинная позиция
+is_short = position.is_short()  # Короткая позиция
+is_in_profit = position.is_in_profit()  # Позиция в прибыли
+is_in_loss = position.is_in_loss()  # Позиция в убытке
+liquidation_distance = position.liquidation_price_change()  # Процентное расстояние до ликвидации
+pnl_percent = position.pnl_percent()  # Процент прибыли/убытка
+current_value = position.value()  # Текущая стоимость позиции
+margin_ratio = position.margin_ratio()  # Отношение маржи к стоимости позиции
+```
+
+### Импортирование моделей
+
+Для удобства использования все основные модели доступны через корневой импорт:
+
+```python
+from models import (
+    # Базовые классы
+    BaseDataModel, BaseMarketDataModel, BaseTradingModel,
+    
+    # Рыночные данные
+    KlineData, KlineInterval, OrderBookData, OrderBookLevel,
+    TradeData, TradeSide, LiquidationData, LiquidationSide,
+    OpenInterestData,
+    
+    # Торговые операции
+    OrderParams, OrderSide, OrderType, TimeInForce, TriggerBy, PositionIdx,
+    OrderInfo, OrderStatus, ExecutionInfo, LiquidityType,
+    PositionInfo, PositionStatus, MarginMode
+)
+```
+
 ## Разработка
 
 ### Установка зависимостей для разработки
