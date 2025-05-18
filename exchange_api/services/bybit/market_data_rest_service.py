@@ -214,8 +214,73 @@ class BybitMarketDataRestProvider(IMarketDataRestProvider):
             VantaAPIError: При ошибке взаимодействия с API биржи.
             VantaRateLimitError: При превышении лимита запросов к API биржи.
         """
-        # Заглушка - нужна полная реализация
-        raise NotImplementedError("Метод get_orderbook пока не реализован")
+        try:
+            # Проверяем и устанавливаем глубину стакана
+            valid_depths = {1, 25, 50, 100, 200, 500}
+            if depth is not None and depth not in valid_depths:
+                # Находим ближайшее поддерживаемое значение глубины
+                nearest_depth = min(valid_depths, key=lambda x: abs(x - depth))
+                self.logger.warning(
+                    f"Глубина стакана {depth} не поддерживается. Используется ближайшее значение {nearest_depth}."
+                )
+                depth = nearest_depth
+            
+            # Устанавливаем глубину по умолчанию, если не указана
+            if depth is None:
+                depth = 25
+            
+            # Определяем категорию инструмента
+            category = self._get_category_for_symbol(symbol)
+            
+            # Проверяем допустимые значения глубины для разных категорий
+            if category in ["option"] and depth > 50:
+                depth = 50
+                self.logger.warning(
+                    f"Для категории '{category}' максимальная глубина стакана: 50. Значение было скорректировано."
+                )
+            
+            # Формируем параметры запроса
+            params = {
+                'category': category,
+                'symbol': symbol,
+                'limit': depth
+            }
+            
+            # Выполняем запрос к API
+            response = await self.connection.get(MarketDataEndpoints.ORDERBOOK, params)
+            
+            # Проверяем успешность запроса
+            if response.get('retCode') != 0:
+                raise VantaAPIError(
+                    message=f"Ошибка при получении стакана ордеров: {response.get('retMsg', 'Unknown error')}",
+                    code=response.get('retCode'),
+                    exchange=self.exchange_name
+                )
+            
+            # Извлекаем данные из ответа
+            orderbook_data = response.get('result', {})
+            
+            # Преобразуем данные в формат, который ожидает OrderBookData.from_bybit_rest
+            formatted_data = {
+                "timestamp": orderbook_data.get("ts", 0),
+                "symbol": symbol,
+                "bids": orderbook_data.get("b", []),
+                "asks": orderbook_data.get("a", [])
+            }
+            
+            # Преобразуем данные в объект OrderBookData
+            return OrderBookData.from_bybit_rest(formatted_data, symbol)
+            
+        except VantaAPIError:
+            # Пробрасываем ошибки API без изменений
+            raise
+        except Exception as e:
+            # Преобразуем другие исключения в VantaAPIError
+            raise VantaAPIError(
+                message=f"Ошибка при получении стакана ордеров: {str(e)}",
+                exchange=self.exchange_name,
+                original_exception=e
+            ) from e
     
     async def get_recent_trades(self, symbol: str, limit: Optional[int] = None) -> List[TradeData]:
         """
