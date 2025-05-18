@@ -154,6 +154,29 @@ class BybitMarketDataStreamProvider(IMarketDataStreamProvider):
                             orderbook_data = OrderBookData.from_bybit_ws(message, symbol)
                             await callback(orderbook_data)
                     
+                    # Обработка сообщений о сделках
+                    elif topic.startswith('publicTrade.'):
+                        # Извлекаем данные о сделках из сообщения
+                        trades_data = message.get('data', [])
+                        
+                        # Проверяем наличие валидатора последовательности в подписке
+                        sequence_validator = subscription.get('sequence_validator')
+                        
+                        # Обрабатываем каждую сделку
+                        for trade_data in trades_data:
+                            # Преобразуем данные в TradeData
+                            trade = TradeData.from_bybit_ws(trade_data, symbol)
+                            
+                            # Если есть валидатор, проверяем сделку
+                            if sequence_validator:
+                                is_new = sequence_validator.validate_trade(trade)
+                                if is_new:
+                                    # Вызываем колбэк только для новых сделок
+                                    await callback(trade)
+                            else:
+                                # Иначе просто передаем сделку в колбэк
+                                await callback(trade)
+                    
                     # Аналогично для других типов каналов...
         
         except Exception as e:
@@ -396,8 +419,32 @@ class BybitMarketDataStreamProvider(IMarketDataStreamProvider):
             VantaAPIError: При ошибке взаимодействия с API биржи.
             VantaWebSocketError: При ошибке WebSocket соединения.
         """
-        # Заглушка - нужна полная реализация
-        raise NotImplementedError("Метод subscribe_to_trades пока не реализован")
+        try:
+            # Формируем имя канала
+            channel = format_public_channel(
+                PublicWebSocketChannels.TRADE,
+                symbol=symbol
+            )
+            
+            # Создаем валидатор последовательности сделок
+            from exchange_api.services.bybit.trade_sequence_validator import TradeSequenceValidator
+            sequence_validator = TradeSequenceValidator(symbol)
+            
+            # Подписываемся на канал
+            return await self._subscribe_to_channel(
+                channel=channel,
+                callback=callback,
+                symbol=symbol,
+                sequence_validator=sequence_validator
+            )
+            
+        except Exception as e:
+            # Преобразуем исключение
+            raise VantaWebSocketError(
+                message=f"Ошибка при подписке на поток сделок: {str(e)}",
+                exchange=self.exchange_name,
+                channel=f"publicTrade.{symbol}"
+            ) from e
     
     async def unsubscribe_from_trades(self, subscription_id: str) -> bool:
         """

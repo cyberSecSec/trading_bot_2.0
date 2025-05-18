@@ -298,8 +298,57 @@ class BybitMarketDataRestProvider(IMarketDataRestProvider):
             VantaAPIError: При ошибке взаимодействия с API биржи.
             VantaRateLimitError: При превышении лимита запросов к API биржи.
         """
-        # Заглушка - нужна полная реализация
-        raise NotImplementedError("Метод get_recent_trades пока не реализован")
+        try:
+            # Определяем категорию инструмента
+            category = self._get_category_for_symbol(symbol)
+            
+            # Формируем параметры запроса
+            params = {
+                'category': category,
+                'symbol': symbol
+            }
+            
+            # Добавляем лимит, если указан
+            # Bybit API поддерживает лимит от 1 до 1000, по умолчанию 500
+            if limit is not None:
+                # Ограничиваем значение лимита в соответствии с API
+                params['limit'] = max(1, min(1000, limit))
+            
+            # Выполняем запрос к API
+            response = await self.connection.get(MarketDataEndpoints.RECENT_TRADES, params)
+            
+            # Проверяем успешность запроса
+            if response.get('retCode') != 0:
+                raise VantaAPIError(
+                    message=f"Ошибка при получении данных о сделках: {response.get('retMsg', 'Unknown error')}",
+                    code=response.get('retCode'),
+                    exchange=self.exchange_name
+                )
+            
+            # Извлекаем данные из ответа
+            trades_data = response.get('result', {}).get('list', [])
+            
+            # Преобразуем данные в объекты TradeData
+            trades = []
+            for trade_item in trades_data:
+                trade = TradeData.from_bybit_rest(trade_item, symbol)
+                trades.append(trade)
+            
+            # Сортируем сделки по времени (от старых к новым)
+            trades.sort(key=lambda x: x.timestamp)
+            
+            return trades
+            
+        except VantaAPIError:
+            # Пробрасываем ошибки API без изменений
+            raise
+        except Exception as e:
+            # Преобразуем другие исключения в VantaAPIError
+            raise VantaAPIError(
+                message=f"Ошибка при получении данных о сделках: {str(e)}",
+                exchange=self.exchange_name,
+                original_exception=e
+            ) from e
     
     async def get_open_interest(self, symbol: str) -> OpenInterestData:
         """
