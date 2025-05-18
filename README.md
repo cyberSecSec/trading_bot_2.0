@@ -1017,3 +1017,176 @@ pytest
 ## Лицензия
 
 MIT 
+
+## Интерфейсы модуля (API Contracts)
+
+Модуль Trading APIs & Exchange предоставляет набор четко определенных интерфейсов для взаимодействия с другими компонентами системы VANTA. Эти интерфейсы абстрагируют детали конкретных бирж и предоставляют унифицированные методы для работы с рыночными данными и торговыми операциями.
+
+### Интерфейсы рыночных данных
+
+#### IMarketDataRestProvider
+
+Интерфейс для получения рыночных данных через REST API. Предоставляет методы для запроса различных типов рыночных данных:
+
+```python
+async def get_klines(symbol, interval, limit, start_time, end_time) -> List[KlineData]
+async def get_orderbook(symbol, depth) -> OrderBookData 
+async def get_recent_trades(symbol, limit) -> List[TradeData]
+async def get_open_interest(symbol) -> OpenInterestData
+async def get_open_interest_history(symbol, period, limit) -> List[OpenInterestData]
+```
+
+#### IMarketDataStreamProvider
+
+Интерфейс для подписки на потоковые рыночные данные через WebSocket. Позволяет получать обновления в реальном времени:
+
+```python
+async def subscribe_to_klines(symbol, interval, callback) -> str
+async def unsubscribe_from_klines(subscription_id) -> bool
+
+async def subscribe_to_orderbook(symbol, callback, depth) -> str
+async def unsubscribe_from_orderbook(subscription_id) -> bool
+
+async def subscribe_to_trades(symbol, callback) -> str
+async def unsubscribe_from_trades(subscription_id) -> bool
+
+async def subscribe_to_liquidations(symbol, callback) -> str
+async def unsubscribe_from_liquidations(subscription_id) -> bool
+
+async def subscribe_to_open_interest(symbol, callback) -> str
+async def unsubscribe_from_open_interest(subscription_id) -> bool
+```
+
+#### IMarketDataProvider
+
+Комбинированный интерфейс, объединяющий функциональность REST и WebSocket провайдеров рыночных данных:
+
+```python
+class IMarketDataProvider(IMarketDataRestProvider, IMarketDataStreamProvider):
+    pass
+```
+
+### Интерфейсы торговых операций
+
+#### ITradeRestExecutor
+
+Интерфейс для выполнения торговых операций через REST API:
+
+```python
+async def create_order(order_params) -> OrderInfo
+async def cancel_order(symbol, order_id) -> OrderInfo
+async def cancel_all_orders(symbol) -> List[OrderInfo]
+async def get_order(symbol, order_id) -> OrderInfo
+async def get_active_orders(symbol) -> List[OrderInfo]
+async def get_position(symbol) -> PositionInfo
+async def get_all_positions() -> List[PositionInfo]
+async def set_leverage(symbol, leverage) -> bool
+async def set_margin_mode(symbol, margin_mode) -> bool
+async def set_position_mode(hedge_mode) -> bool
+```
+
+#### ITradeStreamExecutor
+
+Интерфейс для получения обновлений о торговых операциях через WebSocket:
+
+```python
+async def subscribe_to_order_updates(callback) -> str
+async def unsubscribe_from_order_updates(subscription_id) -> bool
+
+async def subscribe_to_execution_updates(callback) -> str
+async def unsubscribe_from_execution_updates(subscription_id) -> bool
+
+async def subscribe_to_position_updates(callback) -> str
+async def unsubscribe_from_position_updates(subscription_id) -> bool
+
+async def subscribe_to_balance_updates(callback) -> str
+async def unsubscribe_from_balance_updates(subscription_id) -> bool
+```
+
+#### ITradeExecutor
+
+Комбинированный интерфейс, объединяющий функциональность REST и WebSocket интерфейсов для торговых операций:
+
+```python
+class ITradeExecutor(ITradeRestExecutor, ITradeStreamExecutor):
+    pass
+```
+
+### Использование интерфейсов
+
+Интерфейсы предназначены для использования другими модулями системы VANTA, которым требуется доступ к рыночным данным или выполнение торговых операций. Пример использования:
+
+```python
+from exchange_api.interfaces import IMarketDataProvider, ITradeExecutor
+from exchange_api.factory import ExchangeClientFactory
+from models.market_data import KlineInterval
+
+async def example_usage():
+    # Создание клиента биржи с помощью фабрики
+    exchange_client = await ExchangeClientFactory.create_client("bybit")
+    
+    # Получение рыночных данных
+    market_data_provider = exchange_client.market_data  # Реализация IMarketDataProvider
+    
+    # Получение исторических данных свечей
+    klines = await market_data_provider.get_klines(
+        symbol="BTCUSDT",
+        interval=KlineInterval.MIN_1,
+        limit=100
+    )
+    
+    # Подписка на обновления стакана в реальном времени
+    async def orderbook_callback(orderbook):
+        print(f"Получено обновление стакана: {orderbook}")
+    
+    subscription_id = await market_data_provider.subscribe_to_orderbook(
+        symbol="BTCUSDT",
+        callback=orderbook_callback,
+        depth=10
+    )
+    
+    # Выполнение торговых операций
+    trade_executor = exchange_client.trade_executor  # Реализация ITradeExecutor
+    
+    # Получение открытых позиций
+    positions = await trade_executor.get_all_positions()
+    
+    # Отписка от обновлений стакана
+    await market_data_provider.unsubscribe_from_orderbook(subscription_id)
+```
+
+### Обработка ошибок
+
+Все методы интерфейсов могут генерировать следующие исключения:
+
+- `VantaAPIError`: Базовое исключение при ошибках взаимодействия с API биржи
+- `VantaRateLimitError`: При превышении лимита запросов к API биржи
+- `VantaOrderError`: При ошибках операций с ордерами
+- `VantaPositionError`: При ошибках операций с позициями
+- `VantaWebSocketError`: При ошибках WebSocket соединения
+
+Примеры обработки ошибок:
+
+```python
+from exchange_api.exceptions import VantaAPIError, VantaRateLimitError, VantaOrderError
+
+async def example_error_handling(market_data_provider, trade_executor):
+    try:
+        # Получение рыночных данных
+        klines = await market_data_provider.get_klines("BTCUSDT", KlineInterval.MIN_1)
+        
+    except VantaRateLimitError as e:
+        print(f"Превышен лимит запросов: {e}")
+        # Логика для повторной попытки с экспоненциальной задержкой
+        
+    except VantaAPIError as e:
+        print(f"Ошибка API: {e}")
+        
+    try:
+        # Выполнение торговой операции
+        order = await trade_executor.create_order(order_params)
+        
+    except VantaOrderError as e:
+        print(f"Ошибка создания ордера: {e}")
+        # Логика обработки ошибки создания ордера
+``` 
