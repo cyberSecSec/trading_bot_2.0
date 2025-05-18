@@ -1190,3 +1190,72 @@ async def example_error_handling(market_data_provider, trade_executor):
         print(f"Ошибка создания ордера: {e}")
         # Логика обработки ошибки создания ордера
 ``` 
+
+## Реализация сервисов рыночных данных для OHLCV (Свечи)
+
+В рамках развития модуля Trading APIs & Exchange были реализованы сервисы для доступа к рыночным данным биржи Bybit, с фокусом на OHLCV данные (свечи):
+
+### Реализованные компоненты
+
+1. **REST провайдер данных**: `BybitMarketDataRestProvider`
+   - Полная реализация метода `get_klines` для получения исторических OHLCV данных
+   - Преобразование форматов данных биржи в универсальные модели
+   - Обработка ошибок и исключений
+
+2. **WebSocket провайдер данных**: `BybitMarketDataStreamProvider`
+   - Реализация методов `subscribe_to_klines` и `unsubscribe_from_klines`
+   - Управление WebSocket соединениями и подписками
+   - Асинхронная обработка потоковых данных через функции обратного вызова
+
+3. **Объединенный сервис**: `BybitMarketDataService`
+   - Объединяет функциональность REST и WebSocket провайдеров
+   - Предоставляет унифицированный интерфейс для работы с данными
+   - Реализует интерфейс `IMarketDataProvider`
+
+### Пример использования
+
+Полный пример получения и обработки OHLCV данных доступен в [examples/kline_data_example.py](examples/kline_data_example.py)
+
+```python
+# Краткий пример использования
+import asyncio
+from exchange_api.exchanges.bybit import BybitClientConfig, BybitEnvironmentType
+from exchange_api.services.bybit import BybitMarketDataService
+from models.market_data import KlineInterval
+
+async def main():
+    # Создание конфигурации
+    config = BybitClientConfig(
+        exchange_name="bybit",
+        bybit_environment=BybitEnvironmentType.TESTNET,
+        test_mode=True
+    )
+
+    # Использование сервиса через контекстный менеджер
+    async with BybitMarketDataService(config) as service:
+        # Получение исторических данных
+        klines = await service.get_klines(
+            symbol="BTCUSDT",
+            interval=KlineInterval.MINUTE_1,
+            limit=10
+        )
+        
+        # Вывод результатов
+        for kline in klines:
+            print(f"Время: {kline.timestamp}, Цена: {kline.close}")
+```
+
+### Особенности реализации
+
+- **Типизация данных**: Все методы имеют четкую типизацию для повышения надежности кода
+- **Асинхронная обработка**: Использование asyncio для неблокирующих операций ввода-вывода
+- **Контекстные менеджеры**: Встроенная поддержка контекстных менеджеров для управления ресурсами
+- **Обработка ошибок**: Расширенная система исключений для индикации и обработки проблем
+
+### Заглушки для будущего расширения
+
+В сервисе предусмотрены заглушки для реализации методов получения других типов рыночных данных:
+- Стакан ордеров (Order Book)
+- Последние сделки (Recent Trades)
+- Данные по ликвидациям (Liquidations)
+- Открытый интерес (Open Interest) 
