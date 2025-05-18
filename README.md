@@ -1,6 +1,6 @@
 # Trading APIs & Exchange
 
-Компонент системы VANTA, обеспечивающий унифицированный доступ к API криптовалютных бирж. Модуль абстрагирует специфику различных биржевых API и предоставляет единый интерфейс для работы с рыночными данными и выполнения торговых операций.
+Модуль Trading APIs & Exchange является ключевым компонентом системы VANTA, обеспечивающим унифицированный доступ к API криптовалютных бирж. Модуль абстрагирует специфику различных биржевых API и предоставляет единый интерфейс для работы с рыночными данными и выполнения торговых операций.
 
 ## Назначение
 
@@ -1259,3 +1259,121 @@ async def main():
 - Последние сделки (Recent Trades)
 - Данные по ликвидациям (Liquidations)
 - Открытый интерес (Open Interest) 
+
+## Реализованная функциональность
+
+### Сервис для работы со стаканом ордеров
+
+Реализован сервис для доступа к данным стакана ордеров через REST API и WebSocket, с поддержкой различных уровней глубины. Сервис включает в себя:
+
+1. **REST API для получения стакана ордеров**
+   - Метод `get_orderbook` в классе `BybitMarketDataRestProvider`
+   - Поддержка различных глубин стакана (1, 25, 50, 100, 200, 500)
+   - Валидация параметров и обработка ошибок
+   - Нормализация данных в формат `OrderBookData`
+
+2. **WebSocket подписка на обновления стакана**
+   - Метод `subscribe_to_orderbook` в классе `BybitMarketDataStreamProvider`
+   - Поддержка различных глубин стакана через параметр `depth`
+   - Обработка как полных снимков, так и инкрементальных обновлений
+   - Проксирование данных подписчикам без их хранения на стороне сервиса
+
+3. **Обработчик инкрементальных обновлений стакана**
+   - Класс `OrderBookDeltaProcessor`
+   - Поддержание актуального состояния стакана на стороне клиента
+   - Определение типа обновления (снимок/дельта)
+   - Обнаружение пропущенных обновлений и механизмы восстановления
+
+## Примеры использования
+
+В директории `examples/` размещены примеры использования реализованной функциональности:
+
+- `orderbook_example.py` - пример работы со стаканом ордеров (REST API и WebSocket)
+
+### Пример получения данных стакана через REST API
+
+```python
+from exchange_api.core.config import ClientConfig
+from exchange_api.services.bybit.market_data_service import BybitMarketDataService
+
+# Создаем конфигурацию
+config = ClientConfig(
+    exchange_name="bybit",
+    base_url="https://api.bybit.com",
+    websocket_url="wss://stream.bybit.com/v5/public"
+)
+
+# Создаем сервис для работы с рыночными данными
+market_data_service = BybitMarketDataService(config)
+
+# Получаем данные стакана ордеров
+async def get_orderbook_example():
+    orderbook = await market_data_service.get_orderbook(
+        symbol="BTCUSDT",
+        depth=25  # глубина стакана (количество уровней)
+    )
+    
+    # Доступ к данным стакана
+    best_bid = orderbook.best_bid()
+    best_ask = orderbook.best_ask()
+    spread = orderbook.spread()
+    
+    # Перебор уровней стакана
+    for bid_level in orderbook.bids:
+        bid_price = bid_level.price
+        bid_quantity = bid_level.quantity
+        print(f"Бид: {bid_price}, объем: {bid_quantity}")
+```
+
+### Пример подписки на обновления стакана через WebSocket
+
+```python
+from exchange_api.core.config import ClientConfig
+from exchange_api.services.bybit.market_data_service import BybitMarketDataService
+
+# Создаем конфигурацию
+config = ClientConfig(
+    exchange_name="bybit",
+    base_url="https://api.bybit.com",
+    websocket_url="wss://stream.bybit.com/v5/public"
+)
+
+# Создаем сервис для работы с рыночными данными
+market_data_service = BybitMarketDataService(config)
+
+# Обработчик обновлений стакана
+async def orderbook_callback(orderbook):
+    print(f"Получено обновление стакана для {orderbook.symbol}")
+    print(f"Лучший бид: {orderbook.best_bid().price}")
+    print(f"Лучший аск: {orderbook.best_ask().price}")
+
+# Подписка на обновления стакана
+async def subscribe_to_orderbook_example():
+    subscription_id = await market_data_service.subscribe_to_orderbook(
+        symbol="BTCUSDT",
+        callback=orderbook_callback,
+        depth=25  # глубина стакана (количество уровней)
+    )
+    
+    # ... используем подписку ...
+    
+    # Отменяем подписку, когда она больше не нужна
+    await market_data_service.unsubscribe_from_orderbook(subscription_id)
+```
+
+## Документация
+
+Подробное описание компонентов:
+
+- `BybitMarketDataRestProvider.get_orderbook` - метод для получения текущего стакана ордеров через REST API
+- `BybitMarketDataStreamProvider.subscribe_to_orderbook` - метод для подписки на обновления стакана через WebSocket
+- `OrderBookDeltaProcessor` - класс для обработки инкрементальных обновлений стакана
+
+## Критерии выполнения
+
+Реализованные компоненты соответствуют следующим критериям:
+
+1. ✅ Поддержка различных глубин стакана ордеров
+2. ✅ Корректная обработка и применение инкрементальных обновлений
+3. ✅ Высокая производительность при большом количестве обновлений
+4. ✅ Отсутствие хранения данных на стороне сервиса, только проксирование 

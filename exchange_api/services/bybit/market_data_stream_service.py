@@ -142,6 +142,18 @@ class BybitMarketDataStreamProvider(IMarketDataStreamProvider):
                         # Вызываем колбэк с преобразованными данными
                         await callback(kline_data)
                     
+                    # Обработка сообщений стакана ордеров
+                    elif topic.startswith('orderbook.'):
+                        # Если у подписки есть процессор
+                        if 'processor' in subscription:
+                            processor = subscription['processor']
+                            # Преобразуем сообщение в нужный формат и передаем процессору
+                            await processor.process_message(message, callback)
+                        else:
+                            # Для обратной совместимости: прямая обработка без процессора
+                            orderbook_data = OrderBookData.from_bybit_ws(message, symbol)
+                            await callback(orderbook_data)
+                    
                     # Аналогично для других типов каналов...
         
         except Exception as e:
@@ -308,8 +320,48 @@ class BybitMarketDataStreamProvider(IMarketDataStreamProvider):
             VantaAPIError: При ошибке взаимодействия с API биржи.
             VantaWebSocketError: При ошибке WebSocket соединения.
         """
-        # Заглушка - нужна полная реализация
-        raise NotImplementedError("Метод subscribe_to_orderbook пока не реализован")
+        try:
+            # Проверяем и устанавливаем глубину стакана
+            valid_depths = {1, 25, 50, 100, 200, 500}
+            
+            # Если глубина не указана, используем значение по умолчанию
+            if depth is None:
+                depth = 25
+            
+            # Если указана неподдерживаемая глубина, выбираем ближайшую
+            if depth not in valid_depths:
+                nearest_depth = min(valid_depths, key=lambda x: abs(x - depth))
+                logger.warning(
+                    f"Глубина стакана {depth} не поддерживается. Используется ближайшее значение {nearest_depth}."
+                )
+                depth = nearest_depth
+            
+            # Формируем имя канала
+            channel = format_public_channel(
+                PublicWebSocketChannels.ORDERBOOK,
+                depth=str(depth),
+                symbol=symbol
+            )
+            
+            # Создаем процессор для обработки инкрементальных обновлений
+            from exchange_api.services.bybit.orderbook_delta_processor import OrderBookDeltaProcessor
+            processor = OrderBookDeltaProcessor(symbol)
+            
+            # Подписываемся на канал с процессором для обработки обновлений
+            return await self._subscribe_to_channel(
+                channel=channel,
+                callback=callback,
+                symbol=symbol,
+                depth=depth,
+                processor=processor
+            )
+            
+        except Exception as e:
+            raise VantaWebSocketError(
+                message=f"Ошибка при подписке на стакан ордеров: {str(e)}",
+                exchange=self.exchange_name,
+                channel=f"orderbook.{depth}.{symbol}"
+            ) from e
     
     async def unsubscribe_from_orderbook(self, subscription_id: str) -> bool:
         """
