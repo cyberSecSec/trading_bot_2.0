@@ -1191,75 +1191,6 @@ async def example_error_handling(market_data_provider, trade_executor):
         # Логика обработки ошибки создания ордера
 ``` 
 
-## Реализация сервисов рыночных данных для OHLCV (Свечи)
-
-В рамках развития модуля Trading APIs & Exchange были реализованы сервисы для доступа к рыночным данным биржи Bybit, с фокусом на OHLCV данные (свечи):
-
-### Реализованные компоненты
-
-1. **REST провайдер данных**: `BybitMarketDataRestProvider`
-   - Полная реализация метода `get_klines` для получения исторических OHLCV данных
-   - Преобразование форматов данных биржи в универсальные модели
-   - Обработка ошибок и исключений
-
-2. **WebSocket провайдер данных**: `BybitMarketDataStreamProvider`
-   - Реализация методов `subscribe_to_klines` и `unsubscribe_from_klines`
-   - Управление WebSocket соединениями и подписками
-   - Асинхронная обработка потоковых данных через функции обратного вызова
-
-3. **Объединенный сервис**: `BybitMarketDataService`
-   - Объединяет функциональность REST и WebSocket провайдеров
-   - Предоставляет унифицированный интерфейс для работы с данными
-   - Реализует интерфейс `IMarketDataProvider`
-
-### Пример использования
-
-Полный пример получения и обработки OHLCV данных доступен в [examples/kline_data_example.py](examples/kline_data_example.py)
-
-```python
-# Краткий пример использования
-import asyncio
-from exchange_api.exchanges.bybit import BybitClientConfig, BybitEnvironmentType
-from exchange_api.services.bybit import BybitMarketDataService
-from models.market_data import KlineInterval
-
-async def main():
-    # Создание конфигурации
-    config = BybitClientConfig(
-        exchange_name="bybit",
-        bybit_environment=BybitEnvironmentType.TESTNET,
-        test_mode=True
-    )
-
-    # Использование сервиса через контекстный менеджер
-    async with BybitMarketDataService(config) as service:
-        # Получение исторических данных
-        klines = await service.get_klines(
-            symbol="BTCUSDT",
-            interval=KlineInterval.MINUTE_1,
-            limit=10
-        )
-        
-        # Вывод результатов
-        for kline in klines:
-            print(f"Время: {kline.timestamp}, Цена: {kline.close}")
-```
-
-### Особенности реализации
-
-- **Типизация данных**: Все методы имеют четкую типизацию для повышения надежности кода
-- **Асинхронная обработка**: Использование asyncio для неблокирующих операций ввода-вывода
-- **Контекстные менеджеры**: Встроенная поддержка контекстных менеджеров для управления ресурсами
-- **Обработка ошибок**: Расширенная система исключений для индикации и обработки проблем
-
-### Заглушки для будущего расширения
-
-В сервисе предусмотрены заглушки для реализации методов получения других типов рыночных данных:
-- Стакан ордеров (Order Book)
-- Последние сделки (Recent Trades)
-- Данные по ликвидациям (Liquidations)
-- Открытый интерес (Open Interest) 
-
 ## Реализованная функциональность
 
 ### Сервис для работы со стаканом ордеров
@@ -1377,3 +1308,119 @@ async def subscribe_to_orderbook_example():
 2. ✅ Корректная обработка и применение инкрементальных обновлений
 3. ✅ Высокая производительность при большом количестве обновлений
 4. ✅ Отсутствие хранения данных на стороне сервиса, только проксирование 
+
+### Сервис для доступа к данным о сделках
+
+Реализован сервис для получения данных о сделках (trades) через REST API и WebSocket. Сервис включает в себя:
+
+1. **REST API для получения последних сделок**
+   - Метод `get_recent_trades` в классе `BybitMarketDataRestProvider`
+   - Поддержка настройки лимита количества запрашиваемых сделок
+   - Валидация параметров и обработка ошибок API
+   - Нормализация данных в формат `TradeData`
+
+2. **WebSocket подписка на поток сделок**
+   - Метод `subscribe_to_trades` в классе `BybitMarketDataStreamProvider`
+   - Обработка сообщений о сделках в реальном времени
+   - Фильтрация дубликатов и проверка последовательности ID сделок
+   - Эффективная обработка высокочастотных потоков данных
+
+3. **Валидатор последовательности сделок**
+   - Класс `TradeSequenceValidator`
+   - Отслеживание ID сделок для обнаружения пропусков
+   - Ведение статистики по обработанным сделкам
+   - Механизм для предотвращения дублирования сделок
+
+4. **Обработчик сообщений о сделках**
+   - Класс `TradeMessageHandler`
+   - Парсинг и преобразование сообщений от WebSocket API в модель `TradeData`
+   - Соответствие бизнес-логике работы с потоком сделок
+   - Абстракция для асинхронной обработки событий
+
+## Примеры использования
+
+### Пример получения данных о последних сделках через REST API
+
+```python
+from exchange_api.core.config import ClientConfig
+from exchange_api.services.bybit.market_data_service import BybitMarketDataService
+
+# Создаем конфигурацию
+config = ClientConfig(
+    exchange_name="bybit",
+    base_url="https://api.bybit.com",
+    websocket_url="wss://stream.bybit.com/v5/public"
+)
+
+# Создаем сервис для работы с рыночными данными
+market_data_service = BybitMarketDataService(config)
+
+# Получаем данные о последних сделках
+async def get_recent_trades_example():
+    trades = await market_data_service.get_recent_trades(
+        symbol="BTCUSDT",
+        limit=50  # получаем последние 50 сделок
+    )
+    
+    # Анализ полученных сделок
+    buy_volume = sum(trade.quantity for trade in trades if trade.side == TradeSide.BUY)
+    sell_volume = sum(trade.quantity for trade in trades if trade.side == TradeSide.SELL)
+    
+    print(f"Количество сделок: {len(trades)}")
+    print(f"Объем покупок: {buy_volume}")
+    print(f"Объем продаж: {sell_volume}")
+    print(f"Дельта объема: {buy_volume - sell_volume}")
+```
+
+### Пример подписки на поток сделок через WebSocket
+
+```python
+from exchange_api.core.config import ClientConfig
+from exchange_api.services.bybit.market_data_service import BybitMarketDataService
+from models.market_data import TradeSide
+
+# Создаем конфигурацию
+config = ClientConfig(
+    exchange_name="bybit",
+    base_url="https://api.bybit.com",
+    websocket_url="wss://stream.bybit.com/v5/public"
+)
+
+# Создаем сервис для работы с рыночными данными
+market_data_service = BybitMarketDataService(config)
+
+# Обработчик новых сделок
+async def trade_callback(trade):
+    side_str = "Покупка" if trade.side == TradeSide.BUY else "Продажа"
+    print(f"Новая сделка {trade.symbol}: {side_str} | Цена: {trade.price} | Объем: {trade.quantity}")
+
+# Подписка на поток сделок
+async def subscribe_to_trades_example():
+    subscription_id = await market_data_service.subscribe_to_trades(
+        symbol="BTCUSDT",
+        callback=trade_callback
+    )
+    
+    # ... используем подписку ...
+    
+    # Отменяем подписку, когда она больше не нужна
+    await market_data_service.unsubscribe_from_trades(subscription_id)
+```
+
+## Документация
+
+Подробное описание компонентов:
+
+- `BybitMarketDataRestProvider.get_recent_trades` - метод для получения последних сделок через REST API
+- `BybitMarketDataStreamProvider.subscribe_to_trades` - метод для подписки на сделки через WebSocket
+- `TradeSequenceValidator` - класс для отслеживания последовательности сделок и обнаружения пропусков
+- `TradeMessageHandler` - класс для обработки сообщений о сделках из WebSocket API
+
+## Критерии выполнения
+
+Реализованные компоненты соответствуют следующим критериям:
+
+1. ✅ Надежное получение и обработка данных о сделках
+2. ✅ Эффективная работа даже при высокой частоте сделок
+3. ✅ Обнаружение и логирование пропущенных сделок
+4. ✅ Сервис не хранит историю сделок, а лишь предоставляет доступ к ним 
