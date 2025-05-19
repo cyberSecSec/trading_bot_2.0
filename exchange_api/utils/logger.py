@@ -175,9 +175,7 @@ class Logger:
         # Настраиваем диагностику и трассировку
         logger.configure(
             handlers=[],
-            extra={"exchange": ""},
-            diagnose=config.diagnose,
-            backtrace=config.backtrace
+            extra={"exchange": ""}
         )
         
         # Добавляем обработчик для консоли, если требуется

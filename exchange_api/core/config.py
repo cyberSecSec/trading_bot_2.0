@@ -168,7 +168,7 @@ class ClientConfig(BaseModel):
     debug_mode: bool = False
     symbols: List[str] = []
     
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_test_mode_and_environment(cls, values):
         """
         Проверяет согласованность режима тестирования и типа окружения.

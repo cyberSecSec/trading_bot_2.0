@@ -461,9 +461,70 @@ class ConfigurationError(VantaTradingError):
 
 class ExchangeError(VantaTradingError):
     """
-    Исключение, вызываемое при специфичных ошибках биржи.
+    Исключение, вызываемое при ошибках, связанных с биржей.
     
-    Включает ошибки, возвращаемые API биржи, которые не входят в другие категории.
+    Включает общие ошибки биржи, проблемы с соединением с биржей и т.д.
+    """
+    pass
+
+
+class VantaAPIError(VantaTradingError):
+    """
+    Исключение, вызываемое при ошибках взаимодействия с API биржи.
+    
+    Включает общие API ошибки, проблемы с форматом ответа и т.д.
+    """
+    def __init__(
+        self, 
+        message: str, 
+        code: Optional[int] = None,
+        request_info: Optional[Dict[str, Any]] = None,
+        response_info: Optional[Dict[str, Any]] = None,
+        exchange: Optional[str] = None,
+        original_exception: Optional[Exception] = None
+    ):
+        """
+        Инициализирует исключение с заданными параметрами.
+        
+        Args:
+            message: Сообщение об ошибке
+            code: Код ошибки (если применимо)
+            request_info: Информация о запросе, который привел к ошибке
+            response_info: Информация об ответе, который привел к ошибке
+            exchange: Название биржи, с которой связана ошибка
+            original_exception: Исходное исключение, которое привело к этой ошибке
+        """
+        super().__init__(message, code, request_info, response_info, exchange)
+        self.original_exception = original_exception
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Преобразует исключение в словарь с дополнительной информацией.
+        
+        Returns:
+            Dict[str, Any]: Словарь с информацией об исключении
+        """
+        result = super().to_dict()
+        if self.original_exception:
+            result["original_exception"] = str(self.original_exception)
+            result["original_exception_type"] = type(self.original_exception).__name__
+        return result
+
+
+class VantaRateLimitError(RateLimitError):
+    """
+    Исключение, вызываемое при превышении лимитов запросов к API биржи VANTA.
+    
+    Наследуется от RateLimitError и содержит дополнительную информацию о лимитах.
+    """
+    pass
+
+
+class VantaWebSocketError(WebSocketError):
+    """
+    Исключение, вызываемое при ошибках WebSocket соединения с биржей VANTA.
+    
+    Наследуется от WebSocketError и содержит дополнительную информацию о канале.
     """
     pass
 
