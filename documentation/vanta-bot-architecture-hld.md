@@ -60,7 +60,7 @@ graph TB
     ML -->|оптимизирует параметры| CE
 
     %% Стилизация
-    classDef component fill:#f9f,stroke:#333,stroke-width:2px
+    classDef component stroke:#333,stroke-width:2px
     class TA,DAS,CE,OL,NS,AS,ML component
 ```
 
