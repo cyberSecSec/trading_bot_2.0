@@ -1,0 +1,222 @@
+# VANTA Trading Bot — Product Requirements Document (PRD)
+
+---
+
+## Overview
+
+VANTA is an advanced, context-aware trading bot for cryptocurrency futures (initially Bybit), designed to protect traders from market manipulations and adapt dynamically to changing market regimes.  
+It leverages a modular, event-driven, microservice architecture and combines rule-based logic with machine learning for continuous optimization.  
+VANTA's unique value lies in its ability to detect 22 types of market manipulations, adapt strategies in real time, and provide explainable, transparent trading decisions.
+
+**Target Users:**
+- Active crypto futures traders
+- Funds and investment companies
+- Algorithmic traders seeking protection from manipulations
+- Intermediate traders who want 24/7 automation and risk management
+
+**Key Value:**
+- Context-driven strategy selection
+- Real-time detection and defense against manipulations
+- Adaptive, self-optimizing trading logic
+- Transparent, explainable decisions and analytics
+
+---
+
+## Core Features
+
+### 1. Market Regime Detection
+- **What:** Identifies current market regime (impulse, range, illiquid, post-news, countertrend).
+- **Why:** Enables context-specific strategies and reduces false signals.
+- **How:** Analyzes time series, order book, and trade data in real time.
+
+### 2. Manipulation Detection Engine
+- **What:** Detects 22 types of market manipulations (e.g., fake breakouts, spoofing, double bait traps).
+- **Why:** Shields users from common HFT and whale tactics that cause losses.
+- **How:** Uses a set of specialized detectors, each tailored to a manipulation pattern, activated contextually.
+
+### 3. Adaptive Strategy Manager
+- **What:** Dynamically selects and tunes entry/exit strategies based on market regime and detected manipulations.
+- **Why:** Increases win rate and reduces drawdowns by avoiding one-size-fits-all logic.
+- **How:** Switches between strategies (e.g., mean reversion in range, momentum confirmation in impulse) and adapts risk parameters.
+
+### 4. Unified Exchange API Layer
+- **What:** Provides a single interface for interacting with multiple exchanges (starting with Bybit).
+- **Why:** Abstracts exchange-specific quirks, simplifies integration, and enables future multi-exchange support.
+- **How:** Modular API clients, rate limiting, failover, and connection management.
+
+### 5. Real-Time Data Acquisition & Storage
+- **What:** Collects, normalizes, and enriches market data (OHLCV, order book, trades, liquidations, open interest).
+- **Why:** Ensures high-quality, low-latency data for analysis and decision-making.
+- **How:** REST/WebSocket collectors, normalization pipelines, time series storage (InfluxDB/TimescaleDB), Redis caching.
+
+### 6. Risk Management Engine
+- **What:** Dynamically manages position sizing, stop-loss, and take-profit based on context and risk level.
+- **Why:** Protects capital and adapts to changing volatility/liquidity.
+- **How:** Real-time risk assessment, context-driven parameter adjustment.
+
+### 7. Machine Learning Optimizer
+- **What:** Continuously analyzes trade outcomes and optimizes parameters.
+- **Why:** Improves performance over time and adapts to new market conditions.
+- **How:** ML models trained on historical and live data, A/B testing, parameter tuning.
+
+### 8. Notification & Audit System
+- **What:** Sends real-time alerts (e.g., detected manipulations, trade signals, system events) and logs all actions for audit.
+- **Why:** Keeps users informed and provides transparency for compliance and debugging.
+- **How:** Telegram integration, notification manager, event logger, analytics dashboard.
+
+### 9. Modular, Extensible Architecture
+- **What:** Each component (data, core logic, API, notifications, ML) is a separate module/service.
+- **Why:** Enables independent development, testing, scaling, and future feature expansion.
+- **How:** Microservices, event-driven communication, plugin support for new detectors/strategies.
+
+---
+
+## User Experience
+
+### User Personas
+- **Active Trader:** Wants to automate trading, avoid manipulations, and receive actionable alerts.
+- **Fund Manager:** Needs robust risk controls, audit trails, and multi-account support.
+- **Algo Developer:** Seeks extensibility, clear APIs, and the ability to add custom strategies/detectors.
+
+### Key User Flows
+1. **Setup & Configuration**
+   - User installs the bot, configures API keys and environment via `.env` or config files.
+   - Selects exchange(s), sets risk parameters, and enables desired notifications.
+
+2. **Live Trading**
+   - Bot connects to exchange, starts collecting data, and begins regime detection.
+   - User receives notifications about detected manipulations, trade signals, and system status.
+   - All actions are logged for later review.
+
+3. **Monitoring & Analytics**
+   - User accesses dashboards (future) or logs to review performance, detected manipulations, and trade outcomes.
+   - Can adjust parameters or strategies as needed.
+
+4. **Extending Functionality**
+   - Advanced users can add new manipulation detectors or strategies via plugin architecture.
+
+### UI/UX Considerations
+- CLI-first for initial MVP, with clear logs and notification messages.
+- Future: Web dashboard for analytics, configuration, and monitoring.
+- All user-facing messages are clear, actionable, and explain the bot's reasoning.
+
+---
+
+## Technical Architecture
+
+### System Components
+- **Trading APIs & Exchange:** Unified API layer for all supported exchanges.
+- **Data Acquisition & Storage:** Real-time collectors, normalizers, and time series storage.
+- **Core Engine:** Market regime detection, manipulation detectors, strategy manager, risk manager.
+- **Operation Layer:** Order management, position tracking, performance monitoring.
+- **Notification Service:** Telegram integration, message formatting, user preferences.
+- **Audit System:** Event logging, analytics, compliance monitoring.
+- **ML Optimizer:** Parameter optimization, pattern analysis, A/B testing.
+
+### Data Models
+- Unified models for market data (kline, order book, trades, liquidations, open interest).
+- Trading models for orders, executions, positions.
+- All models are validated and normalized for cross-exchange compatibility.
+
+### APIs and Integrations
+- REST and WebSocket APIs for market data and trading.
+- Telegram Bot API for notifications.
+- Future: Webhooks, email, external ML model integration.
+
+### Infrastructure Requirements
+- Python 3.10+, Poetry for dependency management.
+- InfluxDB/TimescaleDB for time series, Redis for state/cache, PostgreSQL for metadata.
+- Docker/Kubernetes for deployment and scaling.
+- Prometheus/Grafana for monitoring, ELK stack for logging.
+
+---
+
+## Development Roadmap
+
+### Phase 1: MVP (In Progress)
+- [x] Unified Trading APIs & Exchange module (Bybit support)
+- [x] Data acquisition for order book, trades, liquidations (REST & WebSocket)
+- [x] Data normalization and unified models
+- [x] Basic manipulation detection (liquidations, order book events)
+- [x] Example scripts and usage documentation
+- [x] Modular architecture for future expansion
+
+### Phase 2: Core Engine & Strategy
+- [ ] Full implementation of market regime detection
+- [ ] Integration of all 22 manipulation detectors
+- [ ] Adaptive strategy manager for context-driven trading
+- [ ] Real-time risk management engine
+
+### Phase 3: ML Optimization & Analytics
+- [ ] ML Optimizer for parameter tuning and self-learning
+- [ ] A/B testing framework
+- [ ] Analytics dashboard for performance and audit
+
+### Phase 4: Multi-Exchange & Extensibility
+- [ ] Support for additional exchanges (Binance, OKX)
+- [ ] Plugin system for new detectors/strategies
+- [ ] Web dashboard for configuration and monitoring
+
+---
+
+## Logical Dependency Chain
+
+1. **Foundation:**  
+   - Trading APIs & Exchange module  
+   - Data acquisition and normalization  
+   - Unified data models
+
+2. **Core Logic:**  
+   - Market regime detection  
+   - Manipulation detectors  
+   - Strategy manager  
+   - Risk management
+
+3. **Execution & Monitoring:**  
+   - Operation layer (order/position management)  
+   - Notification and audit systems
+
+4. **Optimization & Extensibility:**  
+   - ML optimizer  
+   - Analytics dashboard  
+   - Multi-exchange support  
+   - Plugin architecture
+
+---
+
+## Risks and Mitigations
+
+- **Technical Challenges:**  
+  - Real-time data processing and low-latency requirements  
+    → Use async programming, efficient data pipelines, and robust error handling.
+  - Exchange API changes or downtime  
+    → Modular API clients, failover logic, and monitoring.
+
+- **MVP Scope Creep:**  
+  - Focus on core flows (Bybit, order book, trades, liquidations, basic detection) before expanding.
+
+- **Resource Constraints:**  
+  - Prioritize modularity and extensibility to allow incremental development and scaling.
+
+- **Market Data Quality:**  
+  - Implement validation, normalization, and fallback mechanisms.
+
+---
+
+## Appendix
+
+- **Research Findings:**  
+  - 22 manipulation patterns identified and mapped to detection logic.
+  - Market regime taxonomy and context-driven strategy mapping.
+  - Analysis of competitor bots and their limitations.
+
+- **Technical Specifications:**  
+  - See `vanta-bot-architecture-hld.md` for detailed diagrams and component contracts.
+  - See `README.md` for usage, configuration, and data model details.
+  - See `SUMMARY.md` for current implementation status and completed features.
+
+---
+
+**This PRD is living and should be updated as the product evolves.**  
+It is based on your current architecture, implementation, and product vision.  
+Ready for use with Task Master or further breakdown into actionable tasks! 

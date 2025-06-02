@@ -1,0 +1,213 @@
+{
+  "meta": {
+    "generatedAt": "2025-05-28T11:31:03.739Z",
+    "tasksAnalyzed": 25,
+    "totalTasks": 25,
+    "analysisCount": 25,
+    "thresholdScore": 5,
+    "projectName": "Taskmaster",
+    "usedResearch": true
+  },
+  "complexityAnalysis": [
+    {
+      "taskId": 1,
+      "taskTitle": "Project Setup and Environment Configuration",
+      "complexityScore": 5,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Break down the project setup task into detailed subtasks covering repository initialization, dependency management with Poetry, environment configuration, Docker setup, project structure creation, and documentation.",
+      "reasoning": "Medium complexity due to multiple configuration components and technical setup requirements. The task involves standard development environment setup but requires careful coordination of multiple technologies (Git, Poetry, Docker, etc.)."
+    },
+    {
+      "taskId": 2,
+      "taskTitle": "Unified Exchange API Layer - Bybit Integration",
+      "complexityScore": 7,
+      "recommendedSubtasks": 8,
+      "expansionPrompt": "Divide the Bybit API integration into subtasks covering base class design, authentication, rate limiting, connection management, REST/WebSocket implementations, and specific API functionality groups.",
+      "reasoning": "High complexity due to the need to handle multiple API endpoints, authentication, rate limiting, and both REST and WebSocket connections. Error handling and retry logic add additional complexity."
+    },
+    {
+      "taskId": 3,
+      "taskTitle": "Data Models and Schema Definition",
+      "complexityScore": 6,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the data modeling task into subtasks for each category of models (market data, orders, positions, etc.), including validation logic, normalization methods, and serialization functionality.",
+      "reasoning": "Moderate to high complexity due to the need for comprehensive data modeling across multiple entity types with validation and normalization requirements."
+    },
+    {
+      "taskId": 4,
+      "taskTitle": "Real-Time Data Acquisition - WebSocket Implementation",
+      "complexityScore": 8,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Divide the WebSocket implementation into subtasks covering connection management, channel subscriptions, message parsing, reconnection logic, buffering mechanisms, and event emission.",
+      "reasoning": "High complexity due to real-time data handling, connection management, and the need to process high-frequency updates efficiently while maintaining reliability."
+    },
+    {
+      "taskId": 5,
+      "taskTitle": "REST API Data Collection and Historical Data",
+      "complexityScore": 6,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down the REST API data collection into subtasks for each data type (historical klines, trades, order books, etc.), including pagination handling, caching, and rate limit management.",
+      "reasoning": "Moderate complexity involving multiple API endpoints, pagination handling, and rate limit considerations. The caching mechanism adds some complexity but the task follows standard REST API patterns."
+    },
+    {
+      "taskId": 6,
+      "taskTitle": "Time Series Storage Implementation",
+      "complexityScore": 7,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Divide the time series storage implementation into subtasks covering database setup, schema design for different data types, writer implementations, query interfaces, retention policies, and backup procedures.",
+      "reasoning": "High complexity due to database schema design, optimization requirements, and the need to handle different types of time series data efficiently."
+    },
+    {
+      "taskId": 7,
+      "taskTitle": "Redis Implementation for State and Cache",
+      "complexityScore": 5,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down the Redis implementation into subtasks covering setup, key structure design, client wrapper, cache management, pub/sub implementation, and monitoring.",
+      "reasoning": "Medium complexity involving standard Redis patterns for caching and pub/sub, with some additional complexity for connection pooling and performance monitoring."
+    },
+    {
+      "taskId": 8,
+      "taskTitle": "Market Regime Detection Engine",
+      "complexityScore": 9,
+      "recommendedSubtasks": 8,
+      "expansionPrompt": "Divide the market regime detection engine into subtasks for each regime type, including feature extraction, algorithm implementation, order book analysis, trade flow analysis, and transition detection.",
+      "reasoning": "Very high complexity due to the algorithmic nature of market analysis, multiple regime types, and the need for accurate classification based on complex market conditions."
+    },
+    {
+      "taskId": 9,
+      "taskTitle": "Basic Manipulation Detection Implementation",
+      "complexityScore": 8,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Break down the manipulation detection implementation into subtasks covering detector base class, individual detector implementations, confidence scoring, event emission, and context awareness.",
+      "reasoning": "High complexity due to the algorithmic nature of detecting market manipulations, requiring pattern recognition and statistical analysis with context awareness."
+    },
+    {
+      "taskId": 10,
+      "taskTitle": "Advanced Manipulation Detectors",
+      "complexityScore": 9,
+      "recommendedSubtasks": 8,
+      "expansionPrompt": "Divide the advanced manipulation detectors task into subtasks for each pattern type, including parameter refinement, correlation analysis, severity classification, and adaptive thresholds.",
+      "reasoning": "Very high complexity due to the sophisticated pattern recognition required for multiple manipulation types, correlation analysis, and adaptive thresholds."
+    },
+    {
+      "taskId": 11,
+      "taskTitle": "Adaptive Strategy Manager Implementation",
+      "complexityScore": 9,
+      "recommendedSubtasks": 8,
+      "expansionPrompt": "Break down the strategy manager implementation into subtasks covering base class design, regime-specific strategies, selection logic, parameter tuning, transition management, and backtesting framework.",
+      "reasoning": "Very high complexity due to the need for multiple trading strategies, dynamic selection and tuning based on market conditions, and performance tracking."
+    },
+    {
+      "taskId": 12,
+      "taskTitle": "Risk Management Engine",
+      "complexityScore": 8,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Divide the risk management engine into subtasks covering position sizing algorithms, stop-loss management, take-profit strategies, risk parameter adjustment, and drawdown protection.",
+      "reasoning": "High complexity due to the critical nature of risk management, multiple sizing and exit strategies, and the need for dynamic adjustment based on market conditions."
+    },
+    {
+      "taskId": 13,
+      "taskTitle": "Order Management System",
+      "complexityScore": 7,
+      "recommendedSubtasks": 8,
+      "expansionPrompt": "Break down the order management system into subtasks covering order types implementation, state tracking, execution reporting, modification capabilities, and validation checks.",
+      "reasoning": "High complexity due to the variety of order types, state management requirements, and the critical nature of order execution in a trading system."
+    },
+    {
+      "taskId": 14,
+      "taskTitle": "Position Tracking System",
+      "complexityScore": 6,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Divide the position tracking system into subtasks covering position manager implementation, tracking logic, modification capabilities, risk metrics, visualization, and synchronization.",
+      "reasoning": "Moderate to high complexity involving accurate tracking of positions, P&L calculations, and risk metrics with exchange synchronization requirements."
+    },
+    {
+      "taskId": 15,
+      "taskTitle": "Telegram Notification Service",
+      "complexityScore": 4,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Break down the Telegram notification service into subtasks covering API integration, message formatting, user preferences, throttling, and interactive commands.",
+      "reasoning": "Lower complexity as it involves standard API integration with Telegram, though message formatting and user preference management add some complexity."
+    },
+    {
+      "taskId": 16,
+      "taskTitle": "Event Logging and Audit System",
+      "complexityScore": 5,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Divide the logging and audit system into subtasks covering log format design, event logging implementation, storage and rotation, search functionality, export capabilities, and visualization.",
+      "reasoning": "Medium complexity involving structured logging implementation, storage considerations, and search/filtering capabilities."
+    },
+    {
+      "taskId": 17,
+      "taskTitle": "Machine Learning Data Pipeline",
+      "complexityScore": 7,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Break down the ML data pipeline into subtasks covering feature extraction, data collection for different components, preprocessing, feature engineering, validation, and storage.",
+      "reasoning": "High complexity due to the need for comprehensive feature extraction, preprocessing, and quality control for machine learning applications."
+    },
+    {
+      "taskId": 18,
+      "taskTitle": "Machine Learning Optimizer Implementation",
+      "complexityScore": 9,
+      "recommendedSubtasks": 8,
+      "expansionPrompt": "Divide the ML optimizer implementation into subtasks covering model architecture, individual model implementations, training pipeline, evaluation, A/B testing, and deployment.",
+      "reasoning": "Very high complexity due to the sophisticated machine learning models required, training pipeline, evaluation framework, and online learning capabilities."
+    },
+    {
+      "taskId": 19,
+      "taskTitle": "Performance Monitoring and Optimization",
+      "complexityScore": 6,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down the performance monitoring task into subtasks covering monitoring setup, metrics collection, dashboard creation, alerting, optimization, and load testing.",
+      "reasoning": "Moderate complexity involving standard monitoring practices with Prometheus/Grafana, though optimization for low-latency trading adds some complexity."
+    },
+    {
+      "taskId": 20,
+      "taskTitle": "CLI Interface Implementation",
+      "complexityScore": 5,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Divide the CLI implementation into subtasks covering command structure design, command implementations for different functions, interactive mode, completion, and documentation.",
+      "reasoning": "Medium complexity involving standard CLI development patterns, though the variety of commands and interactive features add some complexity."
+    },
+    {
+      "taskId": 21,
+      "taskTitle": "Configuration Management System",
+      "complexityScore": 5,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down the configuration management system into subtasks covering schema design, loading from different sources, validation, secure storage, documentation, and versioning.",
+      "reasoning": "Medium complexity involving standard configuration management patterns, with additional complexity for secure storage and validation."
+    },
+    {
+      "taskId": 22,
+      "taskTitle": "Plugin System for Extensibility",
+      "complexityScore": 7,
+      "recommendedSubtasks": 7,
+      "expansionPrompt": "Divide the plugin system implementation into subtasks covering architecture design, discovery and loading, interface definitions, configuration management, validation, and documentation.",
+      "reasoning": "High complexity due to the need for a flexible yet secure plugin architecture that supports multiple extension points while maintaining system integrity."
+    },
+    {
+      "taskId": 23,
+      "taskTitle": "Backtesting Framework",
+      "complexityScore": 8,
+      "recommendedSubtasks": 8,
+      "expansionPrompt": "Break down the backtesting framework into subtasks covering architecture design, historical data replay, order simulation, metrics calculation, visualization, parameter optimization, and Monte Carlo simulation.",
+      "reasoning": "High complexity due to the need for accurate historical simulation, performance metrics, and optimization capabilities for trading strategy validation."
+    },
+    {
+      "taskId": 24,
+      "taskTitle": "Documentation and User Guides",
+      "complexityScore": 4,
+      "recommendedSubtasks": 5,
+      "expansionPrompt": "Divide the documentation task into subtasks covering installation guide, configuration documentation, user manual sections, API documentation, and developer guides.",
+      "reasoning": "Lower complexity as it involves standard documentation practices, though the comprehensive nature of the system requires detailed explanations across multiple areas."
+    },
+    {
+      "taskId": 25,
+      "taskTitle": "Deployment and CI/CD Pipeline",
+      "complexityScore": 6,
+      "recommendedSubtasks": 6,
+      "expansionPrompt": "Break down the deployment and CI/CD implementation into subtasks covering pipeline setup, automated testing, Docker deployment, Kubernetes configuration, version management, and monitoring.",
+      "reasoning": "Moderate complexity involving standard CI/CD practices, though the comprehensive testing requirements and Kubernetes deployment add some complexity."
+    }
+  ]
+}
