@@ -7,6 +7,7 @@ WebSocket-провайдер для получения рыночных данн
 
 import asyncio
 import uuid
+import time
 from typing import Dict, Any, Set, Callable, Awaitable, Optional, List
 from decimal import Decimal
 
@@ -192,6 +193,56 @@ class BybitMarketDataStreamProvider(IMarketDataStreamProvider):
                                 for liquidation_item in liquidation_data:
                                     liquidation = LiquidationData.from_bybit_ws(liquidation_item, symbol)
                                     await callback(liquidation)
+                    
+                    # Обработка сообщений об открытом интересе
+                    elif topic.startswith('openInterest.'):
+                        # Извлекаем данные об открытом интересе
+                        oi_data = message.get('data', [])
+                        
+                        # Если данные в виде списка, обработаем каждый элемент
+                        if isinstance(oi_data, list) and oi_data:
+                            for oi_item in oi_data:
+                                # Преобразуем данные в OpenInterestData
+                                open_interest = OpenInterestData.from_bybit_ws(oi_item, symbol)
+                                
+                                # Если в подписке есть обработчик аномалий, используем его
+                                if 'oi_analyzer' in subscription:
+                                    oi_analyzer = subscription['oi_analyzer']
+                                    
+                                    # Регистрируем новое значение в анализаторе
+                                    oi_analyzer.register_value(open_interest)
+                                    
+                                    # Проверяем наличие аномалий
+                                    if oi_analyzer.should_analyze():
+                                        recent_values = oi_analyzer.get_recent_values(
+                                            symbol=symbol,
+                                            time_window_seconds=300  # Анализируем данные за последние 5 минут
+                                        )
+                                        
+                                        if recent_values and len(recent_values) >= 2:
+                                            # Обнаружение аномалий
+                                            anomalies = OpenInterestData.detect_anomalies(
+                                                recent_values,
+                                                threshold_percent=Decimal('3.0')  # 3% изменение считается аномальным
+                                            )
+                                            
+                                            # Логируем обнаруженные аномалии
+                                            if anomalies:
+                                                logger.warning(
+                                                    f"Обнаружены аномалии в открытом интересе для {symbol}: {len(anomalies)} аномалий"
+                                                )
+                                                for anomaly in anomalies:
+                                                    logger.info(
+                                                        f"Аномалия OI {symbol}: {anomaly['type']} на {anomaly['percentage_change']}% "
+                                                        f"({anomaly['previous_value']} -> {anomaly['current_value']})"
+                                                    )
+                                
+                                # Вызываем колбэк с преобразованными данными
+                                await callback(open_interest)
+                        # Если данные в виде словаря, обработаем его напрямую
+                        elif isinstance(oi_data, dict):
+                            open_interest = OpenInterestData.from_bybit_ws(oi_data, symbol)
+                            await callback(open_interest)
                     
                     # Аналогично для других типов каналов...
         
@@ -582,8 +633,74 @@ class BybitMarketDataStreamProvider(IMarketDataStreamProvider):
             VantaAPIError: При ошибке взаимодействия с API биржи.
             VantaWebSocketError: При ошибке WebSocket соединения.
         """
-        # Заглушка - нужна полная реализация
-        raise NotImplementedError("Метод subscribe_to_open_interest пока не реализован")
+        try:
+            # Валидация категории инструмента - только для фьючерсов
+            category = self._get_category_for_symbol(symbol)
+            
+            if category not in ['linear', 'inverse']:
+                raise ValidationError(
+                    message=f"Открытый интерес доступен только для фьючерсов (linear, inverse). Текущая категория: {category}",
+                    exchange=self.exchange_name
+                )
+                
+            # Формируем имя канала
+            channel = format_public_channel(
+                PublicWebSocketChannels.OPEN_INTEREST,
+                symbol=symbol
+            )
+            
+            # Создаем класс для анализа данных открытого интереса
+            class OpenInterestAnalyzer:
+                def __init__(self):
+                    self.values = []  # Список значений открытого интереса
+                    self.last_analysis_time = 0  # Время последнего анализа
+                    self.analysis_interval = 60  # Интервал анализа в секундах
+                
+                def register_value(self, oi: OpenInterestData):
+                    """Регистрирует новое значение открытого интереса."""
+                    self.values.append(oi)
+                    
+                    # Ограничиваем размер списка для экономии памяти
+                    max_values = 1000
+                    if len(self.values) > max_values:
+                        self.values = self.values[-max_values:]
+                
+                def should_analyze(self) -> bool:
+                    """Определяет, нужно ли выполнять анализ данных."""
+                    current_time = int(time.time())
+                    if current_time - self.last_analysis_time >= self.analysis_interval:
+                        self.last_analysis_time = current_time
+                        return True
+                    return False
+                
+                def get_recent_values(self, symbol: str, time_window_seconds: int) -> List[OpenInterestData]:
+                    """Возвращает значения за указанный временной интервал."""
+                    current_time = int(time.time())
+                    cutoff_time = current_time - time_window_seconds
+                    
+                    return [
+                        oi for oi in self.values 
+                        if oi.symbol == symbol and oi.timestamp.timestamp() >= cutoff_time
+                    ]
+            
+            # Создаем анализатор открытого интереса
+            oi_analyzer = OpenInterestAnalyzer()
+            
+            # Подписываемся на канал с анализатором
+            return await self._subscribe_to_channel(
+                channel=channel,
+                callback=callback,
+                symbol=symbol,
+                oi_analyzer=oi_analyzer
+            )
+            
+        except Exception as e:
+            # Преобразуем исключение
+            raise VantaWebSocketError(
+                message=f"Ошибка при подписке на обновления открытого интереса: {str(e)}",
+                exchange=self.exchange_name,
+                channel=f"openInterest.{symbol}"
+            ) from e
     
     async def unsubscribe_from_open_interest(self, subscription_id: str) -> bool:
         """

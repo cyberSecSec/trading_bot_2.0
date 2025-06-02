@@ -364,8 +364,60 @@ class BybitMarketDataRestProvider(IMarketDataRestProvider):
             VantaAPIError: При ошибке взаимодействия с API биржи.
             VantaRateLimitError: При превышении лимита запросов к API биржи.
         """
-        # Заглушка - нужна полная реализация
-        raise NotImplementedError("Метод get_open_interest пока не реализован")
+        try:
+            # Определяем категорию инструмента
+            category = self._get_category_for_symbol(symbol)
+            
+            # Валидация символа - для фьючерсов
+            if category not in ['linear', 'inverse']:
+                raise ValidationError(
+                    message=f"Открытый интерес доступен только для фьючерсов (linear, inverse). Текущая категория: {category}",
+                    exchange=self.exchange_name
+                )
+            
+            # Формируем параметры запроса
+            params = {
+                'category': category,
+                'symbol': symbol
+            }
+            
+            # Выполняем запрос к API
+            response = await self.connection.get(MarketDataEndpoints.OPEN_INTEREST, params)
+            
+            # Проверяем успешность запроса
+            if response.get('retCode') != 0:
+                raise VantaAPIError(
+                    message=f"Ошибка при получении открытого интереса: {response.get('retMsg', 'Unknown error')}",
+                    code=response.get('retCode'),
+                    exchange=self.exchange_name
+                )
+            
+            # Извлекаем данные из ответа
+            oi_data = response.get('result', {})
+            
+            # Проверяем наличие данных
+            if not oi_data:
+                raise VantaAPIError(
+                    message=f"Пустой ответ при запросе открытого интереса для {symbol}",
+                    exchange=self.exchange_name
+                )
+            
+            # Преобразуем данные в объект OpenInterestData
+            return OpenInterestData.from_bybit_rest(oi_data, symbol)
+            
+        except VantaAPIError:
+            # Пробрасываем ошибки API без изменений
+            raise
+        except ValidationError:
+            # Пробрасываем ошибки валидации
+            raise
+        except Exception as e:
+            # Преобразуем другие исключения в VantaAPIError
+            raise VantaAPIError(
+                message=f"Ошибка при получении открытого интереса: {str(e)}",
+                exchange=self.exchange_name,
+                original_exception=e
+            ) from e
     
     async def get_open_interest_history(self, symbol: str, period: str, 
                                         limit: Optional[int] = None) -> List[OpenInterestData]:
@@ -374,7 +426,7 @@ class BybitMarketDataRestProvider(IMarketDataRestProvider):
         
         Args:
             symbol: Торговый символ (например, "BTCUSDT").
-            period: Период агрегации данных (например, "5min", "1h", "1d").
+            period: Период агрегации данных (например, "5min", "15min", "30min", "1h", "4h", "1d").
             limit: Максимальное количество записей для получения.
                   Если None, используется значение по умолчанию API.
             
@@ -385,5 +437,75 @@ class BybitMarketDataRestProvider(IMarketDataRestProvider):
             VantaAPIError: При ошибке взаимодействия с API биржи.
             VantaRateLimitError: При превышении лимита запросов к API биржи.
         """
-        # Заглушка - нужна полная реализация
-        raise NotImplementedError("Метод get_open_interest_history пока не реализован") 
+        try:
+            # Определяем категорию инструмента
+            category = self._get_category_for_symbol(symbol)
+            
+            # Валидация символа - для фьючерсов
+            if category not in ['linear', 'inverse']:
+                raise ValidationError(
+                    message=f"История открытого интереса доступна только для фьючерсов (linear, inverse). Текущая категория: {category}",
+                    exchange=self.exchange_name
+                )
+            
+            # Валидация периода
+            valid_periods = {'5min', '15min', '30min', '1h', '4h', '1d'}
+            if period not in valid_periods:
+                raise ValidationError(
+                    message=f"Недопустимый период '{period}'. Допустимые периоды: {', '.join(valid_periods)}",
+                    exchange=self.exchange_name
+                )
+            
+            # Формируем параметры запроса
+            params = {
+                'category': category,
+                'symbol': symbol,
+                'intervalTime': period
+            }
+            
+            # Добавляем лимит, если указан
+            # Bybit API поддерживает лимит до 200 записей, по умолчанию 50
+            if limit is not None:
+                # Ограничиваем значение лимита в соответствии с API
+                params['limit'] = max(1, min(200, limit))
+            
+            # Выполняем запрос к API
+            response = await self.connection.get(MarketDataEndpoints.OPEN_INTEREST_HISTORY, params)
+            
+            # Проверяем успешность запроса
+            if response.get('retCode') != 0:
+                raise VantaAPIError(
+                    message=f"Ошибка при получении истории открытого интереса: {response.get('retMsg', 'Unknown error')}",
+                    code=response.get('retCode'),
+                    exchange=self.exchange_name
+                )
+            
+            # Извлекаем данные из ответа
+            oi_list = response.get('result', {}).get('list', [])
+            
+            # Проверяем наличие данных
+            if not oi_list:
+                # Возвращаем пустой список, если данных нет
+                return []
+            
+            # Преобразуем данные в список объектов OpenInterestData
+            result = OpenInterestData.from_list(oi_list, symbol)
+            
+            # Сортируем по времени (от старых к новым)
+            result.sort(key=lambda x: x.timestamp)
+            
+            return result
+            
+        except VantaAPIError:
+            # Пробрасываем ошибки API без изменений
+            raise
+        except ValidationError:
+            # Пробрасываем ошибки валидации
+            raise
+        except Exception as e:
+            # Преобразуем другие исключения в VantaAPIError
+            raise VantaAPIError(
+                message=f"Ошибка при получении истории открытого интереса: {str(e)}",
+                exchange=self.exchange_name,
+                original_exception=e
+            ) from e 
