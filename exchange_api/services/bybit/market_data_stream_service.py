@@ -8,6 +8,7 @@ WebSocket-провайдер для получения рыночных данн
 import asyncio
 import uuid
 from typing import Dict, Any, Set, Callable, Awaitable, Optional, List
+from decimal import Decimal
 
 from exchange_api.core.config import ClientConfig
 from exchange_api.connection import WebSocketManager
@@ -176,6 +177,21 @@ class BybitMarketDataStreamProvider(IMarketDataStreamProvider):
                             else:
                                 # Иначе просто передаем сделку в колбэк
                                 await callback(trade)
+                    
+                    # Обработка сообщений о ликвидациях
+                    elif topic.startswith('liquidation.'):
+                        # Если у подписки есть обработчик ликвидаций
+                        if 'liquidation_handler' in subscription:
+                            liquidation_handler = subscription['liquidation_handler']
+                            # Передаем сообщение обработчику
+                            await liquidation_handler.handle_message(message)
+                        else:
+                            # Для обратной совместимости: прямая обработка без обработчика
+                            liquidation_data = message.get('data', [])
+                            if isinstance(liquidation_data, list) and liquidation_data:
+                                for liquidation_item in liquidation_data:
+                                    liquidation = LiquidationData.from_bybit_ws(liquidation_item, symbol)
+                                    await callback(liquidation)
                     
                     # Аналогично для других типов каналов...
         
@@ -479,8 +495,59 @@ class BybitMarketDataStreamProvider(IMarketDataStreamProvider):
             VantaAPIError: При ошибке взаимодействия с API биржи.
             VantaWebSocketError: При ошибке WebSocket соединения.
         """
-        # Заглушка - нужна полная реализация
-        raise NotImplementedError("Метод subscribe_to_liquidations пока не реализован")
+        try:
+            # Формируем имя канала
+            channel = format_public_channel(
+                PublicWebSocketChannels.LIQUIDATION,
+                symbol=symbol
+            )
+            
+            # Создаем обработчик сообщений о ликвидациях
+            from exchange_api.exchanges.bybit.handlers.liquidation_handler import LiquidationMessageHandler
+            liquidation_handler = LiquidationMessageHandler(callback)
+            
+            # Создаем анализатор ликвидаций
+            from exchange_api.services.bybit.liquidation_analyzer import LiquidationAnalyzer
+            liquidation_analyzer = LiquidationAnalyzer(
+                large_liquidation_threshold=Decimal('5.0'),  # Крупной считается ликвидация от 5 BTC
+                cascade_time_window_seconds=60,              # Окно 60 секунд для определения каскада
+                cascade_min_volume=Decimal('20.0')           # Каскад от 20 BTC общего объема
+            )
+            
+            # Оборачиваем callback для добавления аналитики
+            async def enhanced_callback(liquidation: LiquidationData) -> None:
+                # Регистрируем ликвидацию в анализаторе
+                liquidation_analyzer.register_liquidation(liquidation)
+                
+                # Перенаправляем в оригинальный callback
+                await callback(liquidation)
+                
+                # Периодически анализируем накопленные данные
+                if liquidation_analyzer.should_analyze():
+                    recent_liquidations = liquidation_analyzer.get_recent_liquidations(
+                        symbol=symbol,
+                        time_window_seconds=300  # Анализируем данные за последние 5 минут
+                    )
+                    
+                    if recent_liquidations:
+                        liquidation_analyzer.analyze_liquidations(recent_liquidations)
+            
+            # Подписываемся на канал
+            return await self._subscribe_to_channel(
+                channel=channel,
+                callback=enhanced_callback,
+                symbol=symbol,
+                liquidation_handler=liquidation_handler,
+                liquidation_analyzer=liquidation_analyzer
+            )
+            
+        except Exception as e:
+            # Преобразуем исключение
+            raise VantaWebSocketError(
+                message=f"Ошибка при подписке на поток ликвидаций: {str(e)}",
+                exchange=self.exchange_name,
+                channel=f"liquidation.{symbol}"
+            ) from e
     
     async def unsubscribe_from_liquidations(self, subscription_id: str) -> bool:
         """
