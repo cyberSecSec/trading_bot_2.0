@@ -13,18 +13,51 @@ Trading APIs & Exchange выполняет следующие функции в 
 
 ## Установка
 
-### Из исходного кода
+### Через Poetry (рекомендуется)
+
+1. Установите Poetry, если он еще не установлен:
+   ```bash
+   pip install poetry
+   # или официально:
+   curl -sSL https://install.python-poetry.org | python3 -
+   ```
+
+2. Установите зависимости в виртуальное окружение:
+   ```bash
+   poetry install
+   ```
+
+3. (Опционально) Активируйте окружение:
+   ```bash
+   poetry shell
+   ```
+
+4. Запускайте скрипты так:
+   ```bash
+   poetry run python examples/connection_example.py
+   ```
+
+### Важно для пользователей Poetry 2.0+
+
+В Poetry 2.0 и новее команда `poetry shell` по умолчанию недоступна. Чтобы её использовать, установите shell-плагин:
 
 ```bash
-git clone https://github.com/cyberSecSec/trading_bot_2.0.git
-cd exchange_api
-pip install -e .
+poetry self add poetry-plugin-shell
 ```
 
-### Через pip
+После этого команда `poetry shell` снова будет работать для активации виртуального окружения.
 
+Подробнее: https://python-poetry.org/docs/managing-environments/#activating-the-environment
+
+---
+
+### Для разработки и тестирования
+
+Dev-зависимости устанавливаются автоматически через poetry install.
+
+Запуск тестов:
 ```bash
-pip install vanta-exchange-api
+poetry run pytest
 ```
 
 ## Основные компоненты
